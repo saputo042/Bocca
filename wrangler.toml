@@ -1,0 +1,8 @@
+# Cloudflare Pages デプロイ設定
+
+[build]
+  command = "npm run build"
+  destination = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"

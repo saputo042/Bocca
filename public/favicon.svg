@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 外枠（黄金の円） -->
+  <circle cx="32" cy="32" r="30" fill="#050509" stroke="#C9A227" stroke-width="1.5"/>
+  <!-- 口（口モチーフ） -->
+  <ellipse cx="32" cy="36" rx="14" ry="9" fill="#050509" stroke="#C9A227" stroke-width="1.2"/>
+  <!-- 舌 -->
+  <ellipse cx="32" cy="42" rx="5" ry="4" fill="#9b1c1c" opacity="0.85"/>
+  <!-- 目（左） -->
+  <circle cx="22" cy="24" r="3.5" fill="#C9A227"/>
+  <circle cx="22" cy="24" r="1.5" fill="#050509"/>
+  <!-- 目（右） -->
+  <circle cx="42" cy="24" r="3.5" fill="#C9A227"/>
+  <circle cx="42" cy="24" r="1.5" fill="#050509"/>
+</svg>

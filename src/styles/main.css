@@ -1,0 +1,1237 @@
+/* =============================================
+   BOCCA - メインスタイルシート
+   テーマ：ダーク・イマーシブ × ゴシック × 黄金
+============================================= */
+
+/* Googleフォントの読み込み */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;700;900&family=Cinzel:wght@400;700;900&family=Noto+Sans+JP:wght@300;400;500&display=swap');
+
+/* =============================================
+   カスタムプロパティ（デザイントークン）
+============================================= */
+:root {
+  /* カラーパレット */
+  --color-void: #000000;
+  --color-abyss: #050509;
+  --color-deep: #0a0a14;
+  --color-dark: #10101e;
+  --color-surface: #1a1a30;
+  --color-mid: #252540;
+
+  /* アクセントカラー */
+  --color-gold: #C9A227;
+  --color-gold-dim: #8a6e1a;
+  --color-gold-bright: #f4d03f;
+  --color-purple: #6d28d9;
+  --color-purple-bright: #8b5cf6;
+  --color-crimson: #9b1c1c;
+  --color-crimson-bright: #ef4444;
+
+  /* テキスト */
+  --text-primary: #e8e0d0;
+  --text-secondary: #a89a7a;
+  --text-muted: #6b5f4a;
+  --text-gold: #C9A227;
+
+  /* フォント */
+  --font-serif: 'Noto Serif JP', 'Georgia', serif;
+  --font-sans: 'Noto Sans JP', 'sans-serif';
+  --font-display: 'Cinzel', 'Noto Serif JP', serif;
+
+  /* スペーシング */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 40px;
+  --spacing-2xl: 64px;
+
+  /* ボーダー */
+  --border-gold: 1px solid rgba(201, 162, 39, 0.3);
+  --border-gold-bright: 1px solid rgba(201, 162, 39, 0.7);
+
+  /* シャドウ */
+  --shadow-gold: 0 0 20px rgba(201, 162, 39, 0.15);
+  --shadow-deep: 0 8px 32px rgba(0, 0, 0, 0.8);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.6);
+
+  /* トランジション */
+  --transition-fast: 0.2s ease;
+  --transition-med: 0.4s ease;
+  --transition-slow: 0.8s ease;
+}
+
+/* =============================================
+   リセット & ベーススタイル
+============================================= */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-abyss);
+  color: var(--text-primary);
+  font-family: var(--font-serif);
+  line-height: 1.7;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+#app {
+  min-height: 100vh;
+  transition: opacity 0.5s ease;
+}
+
+/* =============================================
+   シーン共通スタイル
+============================================= */
+.scene {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background-color: var(--color-abyss);
+}
+
+/* 背景画像 */
+.scene-title {
+  background: url('/assets/images/bg_title.png') center/cover no-repeat;
+}
+
+.scene-entrance {
+  background: url('/assets/images/bg_ruins.png') center/cover no-repeat;
+}
+
+.scene-mountain {
+  background: url('/assets/images/bg_mountain.png') center/cover no-repeat;
+}
+
+.scene-city {
+  background: url('/assets/images/bg_city.png') center/cover no-repeat;
+}
+
+.scene-finale {
+  background: url('/assets/images/bg_space.png') center/cover no-repeat;
+}
+
+/* オーバーレイ */
+.bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(5, 5, 9, 0.7) 0%,
+    rgba(5, 5, 9, 0.5) 50%,
+    rgba(5, 5, 9, 0.85) 100%
+  );
+  z-index: 1;
+}
+
+.urgency-1 { background: linear-gradient(to bottom, rgba(5,5,9,0.65) 0%, rgba(5,5,9,0.45) 50%, rgba(5,5,9,0.8) 100%); }
+.urgency-2 { background: linear-gradient(to bottom, rgba(10,5,9,0.7) 0%, rgba(20,5,9,0.5) 50%, rgba(10,5,9,0.9) 100%); }
+.urgency-3 { background: linear-gradient(to bottom, rgba(20,5,9,0.75) 0%, rgba(40,5,9,0.55) 50%, rgba(20,5,9,0.92) 100%); }
+.urgency-4 { background: linear-gradient(to bottom, rgba(30,0,5,0.8) 0%, rgba(60,0,5,0.65) 50%, rgba(30,0,5,0.95) 100%); }
+
+.finale-overlay {
+  background: linear-gradient(
+    to bottom,
+    rgba(5, 5, 20, 0.75) 0%,
+    rgba(5, 5, 20, 0.55) 40%,
+    rgba(5, 5, 20, 0.9) 100%
+  );
+}
+
+/* パーティクルコンテナ */
+.particles-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* パーティクル */
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  animation: float-up linear infinite;
+  filter: blur(1px);
+}
+
+@keyframes float-up {
+  0% { transform: translateY(0) scale(1); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 0.5; }
+  100% { transform: translateY(-100vh) scale(0.3); opacity: 0; }
+}
+
+/* =============================================
+   ボタンスタイル
+============================================= */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: transparent;
+  border: var(--border-gold-bright);
+  color: var(--color-gold);
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  transition: all var(--transition-med);
+  position: relative;
+  overflow: hidden;
+  text-decoration: none;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-gold);
+  transform: translateX(-100%);
+  transition: transform var(--transition-med);
+  z-index: -1;
+}
+
+.btn-primary:hover::before {
+  transform: translateX(0);
+}
+
+.btn-primary:hover {
+  color: var(--color-void);
+  box-shadow: var(--shadow-gold);
+}
+
+.btn-primary:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-icon {
+  font-size: 0.9em;
+}
+
+.btn-sacrifice {
+  display: inline-block;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: transparent;
+  border: 1px solid var(--color-crimson-bright);
+  color: var(--color-crimson-bright);
+  font-family: var(--font-serif);
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-top: var(--spacing-sm);
+  width: 100%;
+}
+
+.btn-sacrifice:hover {
+  background: var(--color-crimson);
+  color: var(--text-primary);
+  border-color: var(--color-crimson);
+}
+
+/* =============================================
+   タイトルシーン
+============================================= */
+.title-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  text-align: center;
+}
+
+/* BOCCA の口のアイコン */
+.bocca-mouth {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin-bottom: var(--spacing-xl);
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.mouth-outer {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201, 162, 39, 0.1) 0%, transparent 70%);
+  border: 2px solid rgba(201, 162, 39, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mouth-inner {
+  width: 60px;
+  height: 30px;
+  background: var(--color-void);
+  border-radius: 0 0 30px 30px;
+  border: 1px solid rgba(201, 162, 39, 0.6);
+  border-top: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.tongue {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 12px;
+  background: rgba(155, 28, 28, 0.8);
+  border-radius: 50% 50% 60% 60%;
+}
+
+.eye {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--color-gold);
+  border-radius: 50%;
+  top: 30px;
+  animation: blink 4s ease-in-out infinite;
+  box-shadow: 0 0 8px var(--color-gold);
+}
+
+.eye-left { left: 25px; }
+.eye-right { right: 25px; }
+
+@keyframes blink {
+  0%, 90%, 100% { transform: scaleY(1); }
+  93% { transform: scaleY(0.05); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(201, 162, 39, 0.3)); }
+  50% { filter: drop-shadow(0 0 24px rgba(201, 162, 39, 0.7)); }
+}
+
+.game-title {
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 12vw, 8rem);
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  color: var(--color-gold);
+  text-shadow:
+    0 0 30px rgba(201, 162, 39, 0.5),
+    0 0 60px rgba(201, 162, 39, 0.2);
+  margin-bottom: var(--spacing-lg);
+  line-height: 1;
+}
+
+.game-subtitle {
+  font-family: var(--font-serif);
+  font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+  font-style: italic;
+  margin-bottom: var(--spacing-md);
+  min-height: 1.5em;
+}
+
+.game-tagline {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: var(--spacing-2xl);
+  min-height: 1.5em;
+}
+
+.title-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.btn-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+}
+
+.scroll-hint {
+  position: absolute;
+  bottom: var(--spacing-xl);
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  animation: bounce 2s ease-in-out infinite;
+  z-index: 10;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(8px); }
+}
+
+/* =============================================
+   入場シーン（ペルソナ選択）
+============================================= */
+.entrance-content {
+  position: relative;
+  z-index: 10;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-2xl) var(--spacing-xl);
+}
+
+.scene-header {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.scene-label {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  margin-bottom: var(--spacing-md);
+}
+
+.scene-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+  min-height: 1.2em;
+}
+
+.scene-desc {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  white-space: pre-line;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.8;
+}
+
+.selection-info {
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--color-gold);
+  margin-bottom: var(--spacing-xl);
+  letter-spacing: 0.1em;
+}
+
+.select-hint {
+  color: var(--text-muted);
+  margin-left: var(--spacing-sm);
+}
+
+/* ペルソナグリッド */
+.personas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.persona-card {
+  cursor: pointer;
+  transition: all var(--transition-med);
+  border: var(--border-gold);
+  background: rgba(10, 10, 20, 0.7);
+  backdrop-filter: blur(8px);
+  position: relative;
+  overflow: hidden;
+}
+
+.persona-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.05) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity var(--transition-med);
+}
+
+.persona-card:hover {
+  border-color: rgba(201, 162, 39, 0.7);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(201, 162, 39, 0.1);
+}
+
+.persona-card:hover::before {
+  opacity: 1;
+}
+
+.persona-card.selected {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 20px rgba(201, 162, 39, 0.3);
+  background: rgba(201, 162, 39, 0.05);
+}
+
+.persona-card.shake {
+  animation: shake 0.4s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.persona-card-inner {
+  padding: var(--spacing-lg);
+}
+
+.persona-symbol {
+  font-size: 2rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+.persona-name {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  font-weight: 700;
+  margin-bottom: var(--spacing-xs);
+}
+
+.persona-subtitle {
+  font-size: 0.75rem;
+  color: var(--color-gold);
+  font-style: italic;
+  margin-bottom: var(--spacing-sm);
+  letter-spacing: 0.05em;
+}
+
+.persona-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-md);
+  font-style: italic;
+}
+
+.persona-aspects {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.aspect {
+  display: flex;
+  gap: var(--spacing-sm);
+  font-size: 0.75rem;
+  align-items: flex-start;
+}
+
+.aspect-label {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 1px 6px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  font-size: 0.65rem;
+}
+
+.aspect.positive .aspect-label {
+  background: rgba(201, 162, 39, 0.2);
+  color: var(--color-gold);
+  border: 1px solid rgba(201, 162, 39, 0.4);
+}
+
+.aspect.positive {
+  color: var(--text-secondary);
+}
+
+.aspect.negative .aspect-label {
+  background: rgba(155, 28, 28, 0.2);
+  color: var(--color-crimson-bright);
+  border: 1px solid rgba(155, 28, 28, 0.4);
+}
+
+.aspect.negative {
+  color: var(--text-muted);
+}
+
+/* 選択オーバーレイ */
+.persona-select-overlay {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  width: 24px;
+  height: 24px;
+  border: var(--border-gold);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  background: rgba(201, 162, 39, 0.8);
+}
+
+.persona-card.selected .persona-select-overlay {
+  opacity: 1;
+}
+
+.check-icon {
+  font-size: 0.75rem;
+  color: var(--color-void);
+  font-weight: 900;
+}
+
+.entrance-footer {
+  text-align: center;
+  margin-top: var(--spacing-xl);
+}
+
+.footer-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: var(--spacing-xl);
+  line-height: 1.8;
+}
+
+/* =============================================
+   迷宮シーン
+============================================= */
+.maze-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: linear-gradient(to bottom, rgba(5,5,9,0.9) 0%, transparent 100%);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+}
+
+.hud-phase {
+  color: var(--color-gold);
+}
+
+.hud-remaining {
+  color: var(--text-secondary);
+}
+
+.maze-progress {
+  color: var(--color-gold);
+  letter-spacing: 0.2em;
+}
+
+.maze-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  gap: var(--spacing-xl);
+  padding-top: calc(var(--spacing-2xl) + 60px);
+}
+
+.maze-prompt-container {
+  text-align: center;
+  max-width: 700px;
+}
+
+.maze-prompt-icon {
+  font-size: 2rem;
+  color: var(--color-gold);
+  margin-bottom: var(--spacing-md);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.maze-prompt {
+  font-family: var(--font-serif);
+  font-size: clamp(0.9rem, 2vw, 1.05rem);
+  color: var(--text-secondary);
+  line-height: 1.9;
+  white-space: pre-line;
+  font-style: italic;
+}
+
+.maze-question {
+  text-align: center;
+}
+
+.maze-qtext {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 4vw, 2.2rem);
+  color: var(--text-primary);
+  letter-spacing: 0.1em;
+}
+
+.maze-personas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  justify-content: center;
+  max-width: 900px;
+  width: 100%;
+}
+
+.maze-persona-card {
+  width: 200px;
+  border: var(--border-gold);
+  background: rgba(5, 5, 9, 0.75);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: all var(--transition-med);
+  position: relative;
+}
+
+.maze-persona-card:hover {
+  border-color: var(--color-crimson-bright);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(155, 28, 28, 0.3);
+}
+
+.maze-persona-card.being-sacrificed {
+  border-color: var(--color-crimson-bright);
+  background: rgba(155, 28, 28, 0.2);
+  animation: sacrifice-anim 0.5s ease forwards;
+}
+
+@keyframes sacrifice-anim {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); filter: brightness(1.5); }
+  100% { transform: scale(0.95) translateY(5px); opacity: 0.6; }
+}
+
+.maze-persona-inner {
+  padding: var(--spacing-lg);
+  text-align: center;
+}
+
+.maze-symbol {
+  font-size: 2.5rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+.maze-name {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  font-weight: 700;
+  margin-bottom: var(--spacing-xs);
+}
+
+.maze-subtitle {
+  font-size: 0.7rem;
+  color: var(--color-gold);
+  font-style: italic;
+  margin-bottom: var(--spacing-sm);
+}
+
+.maze-persona-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  font-style: italic;
+  margin-bottom: var(--spacing-md);
+}
+
+/* 緊張感バー */
+.tension-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255,255,255,0.05);
+  z-index: 100;
+}
+
+.tension-fill {
+  height: 100%;
+  background: linear-gradient(to right, var(--color-gold), var(--color-crimson-bright));
+  transition: width 1s ease;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+/* =============================================
+   終幕シーン（診断 + 料理）
+============================================= */
+.finale-content {
+  position: relative;
+  z-index: 10;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+}
+
+.finale-header {
+  text-align: center;
+}
+
+.finale-main-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 5vw, 2.8rem);
+  color: var(--text-primary);
+  margin-top: var(--spacing-md);
+  min-height: 1.2em;
+  text-shadow: 0 0 30px rgba(201, 162, 39, 0.3);
+}
+
+/* 最後のペルソナ */
+.last-persona-reveal {
+  text-align: center;
+}
+
+.reveal-label {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  margin-bottom: var(--spacing-md);
+}
+
+.last-persona-card {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-xl) var(--spacing-2xl);
+  border: var(--border-gold-bright);
+  background: rgba(201, 162, 39, 0.05);
+  backdrop-filter: blur(12px);
+  gap: var(--spacing-sm);
+}
+
+.last-persona-symbol {
+  font-size: 4rem;
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.last-persona-name {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--color-gold);
+  font-weight: 700;
+}
+
+.last-persona-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* 診断セクション */
+.diagnosis-section {
+  background: rgba(5, 5, 20, 0.6);
+  border: var(--border-gold);
+  padding: var(--spacing-xl);
+  backdrop-filter: blur(8px);
+}
+
+.diagnosis-title {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  color: var(--color-gold);
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+.diagnosis-layers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.diagnosis-layer {
+  padding: var(--spacing-lg);
+  border-left: 2px solid;
+  padding-left: var(--spacing-xl);
+  transition: all var(--transition-slow);
+}
+
+.layer-1 {
+  border-color: rgba(201, 162, 39, 0.5);
+  background: rgba(201, 162, 39, 0.03);
+}
+
+.layer-2 {
+  border-color: rgba(139, 92, 246, 0.5);
+  background: rgba(139, 92, 246, 0.03);
+}
+
+.layer-3 {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.03);
+}
+
+.layer-number {
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--spacing-xs);
+}
+
+.layer-label {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.layer-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.layer-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.overall-comment {
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  border-top: var(--border-gold);
+  text-align: center;
+}
+
+.overall-icon {
+  font-size: 1.5rem;
+  color: var(--color-gold);
+  margin-bottom: var(--spacing-md);
+}
+
+.overall-text {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--text-primary);
+  line-height: 1.9;
+  font-style: italic;
+}
+
+/* 料理ペアリング */
+.food-pairing-section {
+  background: rgba(5, 5, 20, 0.6);
+  border: var(--border-gold);
+  padding: var(--spacing-xl);
+  backdrop-filter: blur(8px);
+}
+
+.food-title {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  color: var(--color-gold);
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+.food-card {
+  display: flex;
+  gap: var(--spacing-xl);
+  align-items: flex-start;
+  padding: var(--spacing-lg);
+  border: 1px solid;
+  background: rgba(0, 0, 0, 0.3);
+  margin-bottom: var(--spacing-xl);
+}
+
+.food-emoji {
+  font-size: 3rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.food-info {
+  flex: 1;
+}
+
+.food-name {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.food-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: var(--spacing-md);
+}
+
+.food-reason {
+  padding: var(--spacing-md);
+  background: rgba(201, 162, 39, 0.05);
+  border-left: 2px solid rgba(201, 162, 39, 0.3);
+}
+
+.reason-label {
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  margin-bottom: var(--spacing-xs);
+}
+
+.food-reason p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  font-style: italic;
+}
+
+/* 料理イメージプレースホルダー */
+.food-mood-image {
+  margin-top: var(--spacing-md);
+}
+
+.food-image-placeholder {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.05), rgba(109, 40, 217, 0.05));
+  border: var(--border-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.food-image-placeholder::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(201, 162, 39, 0.1) 0%, transparent 70%);
+  animation: slow-pulse 4s ease-in-out infinite;
+}
+
+@keyframes slow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.food-image-overlay {
+  text-align: center;
+  z-index: 1;
+}
+
+.food-image-emoji {
+  display: block;
+  font-size: 4rem;
+  margin-bottom: var(--spacing-sm);
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.food-image-name {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: var(--color-gold);
+  letter-spacing: 0.1em;
+}
+
+/* 犠牲の記録 */
+.sacrifice-log-section {
+  background: rgba(5, 5, 20, 0.5);
+  border: var(--border-gold);
+  padding: var(--spacing-xl);
+  backdrop-filter: blur(8px);
+}
+
+.log-title {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+.sacrifice-entries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.sacrifice-entry {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: center;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.entry-turn {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  width: 80px;
+}
+
+.entry-content {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.entry-symbol {
+  margin-right: var(--spacing-xs);
+}
+
+.entry-name {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.entry-time {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: var(--spacing-sm);
+}
+
+/* フィナーレフッター */
+.finale-footer {
+  text-align: center;
+  padding: var(--spacing-xl);
+  border-top: var(--border-gold);
+}
+
+.finale-closing {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-bottom: var(--spacing-xl);
+  letter-spacing: 0.05em;
+}
+
+/* =============================================
+   レスポンシブ対応
+============================================= */
+@media (max-width: 768px) {
+  .personas-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: var(--spacing-sm);
+  }
+
+  .persona-card-inner {
+    padding: var(--spacing-md);
+  }
+
+  .maze-personas {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .maze-persona-card {
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .food-card {
+    flex-direction: column;
+  }
+
+  .diagnosis-layers {
+    gap: var(--spacing-md);
+  }
+
+  .entrance-content,
+  .finale-content {
+    padding: var(--spacing-xl) var(--spacing-md);
+  }
+
+  .bocca-mouth {
+    width: 80px;
+    height: 80px;
+  }
+
+  .maze-hud {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+}
+
+/* =============================================
+   スクロールバーカスタマイズ
+============================================= */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-abyss);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-gold-dim);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold);
+}
+
+/* =============================================
+   セレクション
+============================================= */
+::selection {
+  background: rgba(201, 162, 39, 0.3);
+  color: var(--text-primary);
+}
+
+/* =============================================
+   ローディング状態
+============================================= */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  color: var(--color-gold);
+  font-family: var(--font-display);
+  letter-spacing: 0.3em;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
