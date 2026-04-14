@@ -175,55 +175,81 @@ export function renderMazeScene(container: HTMLElement): void {
     const boccaContainer = document.getElementById('maze-bocca');
 
     if (sacrificedCard && boccaContainer) {
-      // 他のカードを薄くし、イベントを無効化
+      // 画面中央（口の座標）の計算
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      const rect = sacrificedCard.getBoundingClientRect();
+      const cardCenterX = rect.left + rect.width / 2;
+      const cardCenterY = rect.top + rect.height / 2;
+      
+      const dx = cardCenterX - centerX;
+      const dy = cardCenterY - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const initialAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+      // オリジナルのカードと他のカードを完全に非表示にし、イベントを無効化
       document.querySelectorAll('.maze-persona-card').forEach(card => {
         const el = card as HTMLElement;
         el.style.pointerEvents = 'none';
-        if (card.getAttribute('data-id') !== sacrificedId) {
-          el.style.opacity = '0.3';
-        }
+        el.style.transition = 'opacity 0.3s ease';
+        el.style.opacity = '0';
       });
 
-      // 真実の口を中央に出現させる
+      // スパイラルアニメーション用のラッパーを作成
+      const ghostWrapper = document.createElement('div');
+      ghostWrapper.style.position = 'fixed';
+      ghostWrapper.style.left = '50%';
+      ghostWrapper.style.top = '50%';
+      ghostWrapper.style.width = '0px';
+      ghostWrapper.style.height = '0px';
+      ghostWrapper.style.zIndex = '1000';
+      ghostWrapper.style.pointerEvents = 'none';
+      document.body.appendChild(ghostWrapper);
+
+      // ゴーストカードを作成して配置
+      const ghostCard = sacrificedCard.cloneNode(true) as HTMLElement;
+      ghostCard.style.position = 'absolute';
+      ghostCard.style.width = `${rect.width}px`;
+      ghostCard.style.height = `${rect.height}px`;
+      ghostCard.style.left = `-${rect.width / 2}px`;
+      ghostCard.style.top = `-${rect.height / 2}px`;
+      ghostCard.style.margin = '0';
+      ghostCard.style.opacity = '1';
+      ghostCard.style.transform = `translateX(${distance}px)`;
+      ghostCard.classList.add('being-sacrificed');
+      ghostWrapper.appendChild(ghostCard);
+
+      // 真実の口を出現させ、音を鳴らす
       boccaContainer.classList.add('active');
-
-      // カードの現在座標を取得
-      const rect = sacrificedCard.getBoundingClientRect();
-      
-      // absolute(fixed)にして元の位置に固定
-      sacrificedCard.style.position = 'fixed';
-      sacrificedCard.style.left = `${rect.left}px`;
-      sacrificedCard.style.top = `${rect.top}px`;
-      sacrificedCard.style.width = `${rect.width}px`;
-      sacrificedCard.style.height = `${rect.height}px`;
-      sacrificedCard.style.margin = '0';
-      sacrificedCard.classList.add('being-sacrificed');
-
-      // 画面中央（口の座標）への移動距離を計算
-      const centerX = window.innerWidth / 2;
-      const centerY = window.innerHeight / 2;
-      const dx = centerX - (rect.left + rect.width / 2);
-      const dy = centerY - (rect.top + rect.height / 2);
-
-      // 吸い込み音を鳴らす
       playSFX('sacrifice');
 
-      // 少し遅れてアニメーション実行（口が開いてから吸い込む）
+      // ぐるぐる回りながら吸い込まれる処理
       setTimeout(() => {
-        sacrificedCard.style.transition = 'all 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53)';
-        sacrificedCard.style.transform = `translate(${dx}px, ${dy}px) scale(0)`;
-        sacrificedCard.style.opacity = '0';
-        sacrificedCard.style.filter = 'brightness(2) contrast(1.5)';
-      }, 150);
+        const duration = 1600; // 1.6秒かけて吸い込む
+        
+        // ラッパーを回転させる（現在の角度から3回転）
+        ghostWrapper.animate([
+          { transform: `rotate(${initialAngle}deg)` },
+          { transform: `rotate(${initialAngle + 1080}deg)` }
+        ], { duration, easing: 'cubic-bezier(0.5, 0, 0.8, 0.2)', fill: 'forwards' });
 
-      // 吸い込み完了後、口を閉じて消す
+        // カード自身を中央へ移動・縮小させる
+        ghostCard.animate([
+          { transform: `translateX(${distance}px) scale(1)`, opacity: 1, filter: 'brightness(1)' },
+          { transform: `translateX(${distance * 0.8}px) scale(1.15)`, opacity: 1, filter: 'brightness(1.5)' }, // 少し浮き上がる
+          { transform: `translateX(0px) scale(0)`, opacity: 0, filter: 'brightness(3)' }
+        ], { duration, easing: 'cubic-bezier(0.5, 0, 0.9, 0.5)', fill: 'forwards' });
+      }, 100);
+
+      // 吸い込み完了後、不要な要素を消す
       setTimeout(() => {
         boccaContainer.classList.remove('active');
-      }, 950);
+        ghostWrapper.remove();
+      }, 1800);
     }
 
-    // 口が消え終わってから次のターンへ（1.5秒後）
-    sleep(1500).then(() => {
+    // 十分待ってから次のターンへ（2秒後）
+    sleep(2000).then(() => {
       remainingPersonas = remainingPersonas.filter(id => id !== sacrificedId);
 
       recordSacrifice({
