@@ -2,6 +2,7 @@
 
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
+let bgmAudio: HTMLAudioElement | null = null;
 let currentAmbience: AudioBufferSourceNode | null = null;
 let droneNodes: OscillatorNode[] = [];
 
@@ -16,159 +17,29 @@ function initAudio(): AudioContext {
   return audioContext;
 }
 
-// ドローン音生成（雰囲気音のベース）
-function createDroneSound(frequency: number, type: OscillatorType = 'sine'): OscillatorNode {
-  const ctx = initAudio();
-  const oscillator = ctx.createOscillator();
-  const gainNode = ctx.createGain();
-  const filterNode = ctx.createBiquadFilter();
-
-  oscillator.type = type;
-  oscillator.frequency.value = frequency;
-
-  filterNode.type = 'lowpass';
-  filterNode.frequency.value = 800;
-
-  gainNode.gain.value = 0.05;
-
-  oscillator.connect(filterNode);
-  filterNode.connect(gainNode);
-  gainNode.connect(masterGain!);
-
-  return oscillator;
-}
-
 // シーン別の雰囲気音
 export type AmbienceTheme = 'title' | 'ruins' | 'mountain' | 'city' | 'space';
 
-export function playAmbienceForScene(theme: AmbienceTheme): void {
+export function playAmbienceForScene(_theme: AmbienceTheme): void {
+  // 以前のプロシージャル音源を停止
   stopAllAudio();
 
-  try {
-    const ctx = initAudio();
+  // 提供されたMP3を背景BGMとしてループ再生
+  if (!bgmAudio) {
+    bgmAudio = new Audio('/assets/music/呪いの継承.mp3');
+    bgmAudio.loop = true;
+    bgmAudio.volume = 0.5; // 必要に応じて音量を調整
+  }
 
-    switch (theme) {
-      case 'title':
-      case 'ruins':
-        // 古代遺跡：低いドローン＋不規則なハーモニクス
-        playRuinsAmbience(ctx);
-        break;
-      case 'mountain':
-        // 山：風の音のような高周波ノイズ＋緊張感
-        playMountainAmbience(ctx);
-        break;
-      case 'city':
-        // 都会：パルス音＋不安定な音景
-        playCityAmbience(ctx);
-        break;
-      case 'space':
-        // 宇宙：深い静寂＋遠いシンセ
-        playSpaceAmbience(ctx);
-        break;
-    }
-  } catch (e) {
-    // AudioContextが使えない環境では無音
-    console.warn('雰囲気音の再生に失敗しました:', e);
+  // 再生されていない場合のみ再生開始（ブラウザの自動再生ブロックに備えてcatch）
+  if (bgmAudio.paused) {
+    bgmAudio.play().catch(e => {
+      console.warn('BGMの自動再生がブラウザにブロックされました（ユーザー操作後に再生されます）:', e);
+    });
   }
 }
 
-function playRuinsAmbience(ctx: AudioContext): void {
-  // 基音: 55Hz（低いA）
-  const base = createDroneSound(55, 'sine');
-  // 倍音: 110Hz
-  const harmonic1 = createDroneSound(110, 'sine');
-  // 少しデチューン: 82.5Hz（不協和）
-  const harmonic2 = createDroneSound(82.5, 'triangle');
 
-  droneNodes = [base, harmonic1, harmonic2];
-  droneNodes.forEach(node => node.start());
-
-  // ゆっくりとしたLFOで揺らぎを加える
-  const lfo = ctx.createOscillator();
-  const lfoGain = ctx.createGain();
-  lfo.frequency.value = 0.1;
-  lfoGain.gain.value = 5;
-  lfo.connect(lfoGain);
-  lfoGain.connect(base.frequency);
-  lfo.start();
-  droneNodes.push(lfo);
-}
-
-function playMountainAmbience(ctx: AudioContext): void {
-  // 緊張感のある高音
-  const base1 = createDroneSound(146.83, 'sawtooth'); // D3
-  const base2 = createDroneSound(155.56, 'sine'); // Eb3（不協和）
-
-  // ノイズ的な風の音
-  const bufferSize = ctx.sampleRate * 2;
-  const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-  const output = noiseBuffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) {
-    output[i] = Math.random() * 2 - 1;
-  }
-
-  const whiteNoise = ctx.createBufferSource();
-  whiteNoise.buffer = noiseBuffer;
-  whiteNoise.loop = true;
-
-  const filterNode = ctx.createBiquadFilter();
-  filterNode.type = 'bandpass';
-  filterNode.frequency.value = 400;
-  filterNode.Q.value = 0.5;
-
-  const noiseGain = ctx.createGain();
-  noiseGain.gain.value = 0.02;
-
-  whiteNoise.connect(filterNode);
-  filterNode.connect(noiseGain);
-  noiseGain.connect(masterGain!);
-  whiteNoise.start();
-
-  droneNodes = [base1, base2];
-  droneNodes.forEach(node => node.start());
-}
-
-function playCityAmbience(_ctx: AudioContext): void {
-  // パルス音（都市の脈動）
-  const pulse = createDroneSound(80, 'square');
-  const high = createDroneSound(320, 'sine');
-
-  // ランダムなクリック音で不安感を演出
-  function scheduleClick() {
-    if (!audioContext) return;
-    const clickTime = audioContext.currentTime + Math.random() * 3 + 0.5;
-    const clickOsc = audioContext.createOscillator();
-    const clickGain = audioContext.createGain();
-    clickOsc.frequency.value = Math.random() * 1000 + 500;
-    clickGain.gain.setValueAtTime(0.1, clickTime);
-    clickGain.gain.exponentialRampToValueAtTime(0.001, clickTime + 0.05);
-    clickOsc.connect(clickGain);
-    clickGain.connect(masterGain!);
-    clickOsc.start(clickTime);
-    clickOsc.stop(clickTime + 0.1);
-
-    setTimeout(scheduleClick, Math.random() * 2000 + 500);
-  }
-
-  droneNodes = [pulse, high];
-  droneNodes.forEach(node => node.start());
-  scheduleClick();
-}
-
-function playSpaceAmbience(ctx: AudioContext): void {
-  // 深い宇宙の音：非常に低いドローン
-  const deep1 = createDroneSound(27.5, 'sine'); // A0
-  const deep2 = createDroneSound(41.2, 'sine'); // E1
-  const shimmer = createDroneSound(880, 'sine'); // 高いA
-
-  const shimmerGain = ctx.createGain();
-  shimmerGain.gain.value = 0.01;
-  shimmer.connect(shimmerGain);
-  shimmerGain.connect(masterGain!);
-
-  droneNodes = [deep1, deep2, shimmer];
-  droneNodes.forEach(node => node.start());
-}
 
 // ボタンクリック音
 export function playSFX(type: 'select' | 'sacrifice' | 'reveal'): void {
@@ -249,6 +120,7 @@ export function playSFX(type: 'select' | 'sacrifice' | 'reveal'): void {
 }
 
 export function stopAllAudio(): void {
+  // プロシージャル音源の停止
   droneNodes.forEach(node => {
     try { node.stop(); } catch (e) { /* 既に停止済み */ }
   });
@@ -258,10 +130,20 @@ export function stopAllAudio(): void {
     try { currentAmbience.stop(); } catch (e) { /* 既に停止済み */ }
     currentAmbience = null;
   }
+  
+  // MP3のBGMを停止（もし必要なら）
+  // if (bgmAudio) {
+  //   bgmAudio.pause();
+  //   bgmAudio.currentTime = 0;
+  // }
 }
 
 export function setVolume(volume: number): void {
+  const safeVolume = Math.max(0, Math.min(1, volume));
   if (masterGain) {
-    masterGain.gain.value = Math.max(0, Math.min(1, volume));
+    masterGain.gain.value = safeVolume;
+  }
+  if (bgmAudio) {
+    bgmAudio.volume = safeVolume;
   }
 }
