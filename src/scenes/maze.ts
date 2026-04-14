@@ -112,6 +112,18 @@ export function renderMazeScene(container: HTMLElement): void {
         <div class="tension-bar">
           <div class="tension-fill" style="width: ${(urgency / 4) * 100}%"></div>
         </div>
+
+        <div class="maze-bocca-container" id="maze-bocca">
+          <div class="bocca-mouth">
+            <div class="mouth-outer">
+              <div class="mouth-inner">
+                <div class="tongue"></div>
+              </div>
+            </div>
+            <div class="eye eye-left"></div>
+            <div class="eye eye-right"></div>
+          </div>
+        </div>
       </div>
     `;
 
@@ -158,22 +170,60 @@ export function renderMazeScene(container: HTMLElement): void {
     const decisionTimeMs = Date.now() - turnStartTime;
     const promptData = PROMPTS[Math.min(currentTurn, PROMPTS.length - 1)];
 
-    // 犠牲カードを選択状態に
+    // 犠牲カードと口の要素を取得
     const sacrificedCard = document.querySelector(`.maze-persona-card[data-id="${sacrificedId}"]`) as HTMLElement;
-    if (sacrificedCard) {
+    const boccaContainer = document.getElementById('maze-bocca');
+
+    if (sacrificedCard && boccaContainer) {
+      // 他のカードを薄くし、イベントを無効化
+      document.querySelectorAll('.maze-persona-card').forEach(card => {
+        const el = card as HTMLElement;
+        el.style.pointerEvents = 'none';
+        if (card.getAttribute('data-id') !== sacrificedId) {
+          el.style.opacity = '0.3';
+        }
+      });
+
+      // 真実の口を中央に出現させる
+      boccaContainer.classList.add('active');
+
+      // カードの現在座標を取得
+      const rect = sacrificedCard.getBoundingClientRect();
+      
+      // absolute(fixed)にして元の位置に固定
+      sacrificedCard.style.position = 'fixed';
+      sacrificedCard.style.left = `${rect.left}px`;
+      sacrificedCard.style.top = `${rect.top}px`;
+      sacrificedCard.style.width = `${rect.width}px`;
+      sacrificedCard.style.height = `${rect.height}px`;
+      sacrificedCard.style.margin = '0';
       sacrificedCard.classList.add('being-sacrificed');
+
+      // 画面中央（口の座標）への移動距離を計算
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      const dx = centerX - (rect.left + rect.width / 2);
+      const dy = centerY - (rect.top + rect.height / 2);
+
+      // 吸い込み音を鳴らす
       playSFX('sacrifice');
+
+      // 少し遅れてアニメーション実行（口が開いてから吸い込む）
+      setTimeout(() => {
+        sacrificedCard.style.transition = 'all 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53)';
+        sacrificedCard.style.transform = `translate(${dx}px, ${dy}px) scale(0)`;
+        sacrificedCard.style.opacity = '0';
+        sacrificedCard.style.filter = 'brightness(2) contrast(1.5)';
+      }, 150);
+
+      // 吸い込み完了後、口を閉じて消す
+      setTimeout(() => {
+        boccaContainer.classList.remove('active');
+      }, 950);
     }
 
-    // 残りのカードを薄くする
-    document.querySelectorAll('.maze-persona-card').forEach(card => {
-      if (card.getAttribute('data-id') !== sacrificedId) {
-        (card as HTMLElement).style.opacity = '0.3';
-      }
-    });
-
-    // 少し待ってから次のターンへ
-    sleep(1200).then(() => {
+    // 口が消え終わってから次のターンへ（1.5秒後）
+    sleep(1500).then(() => {
       remainingPersonas = remainingPersonas.filter(id => id !== sacrificedId);
 
       recordSacrifice({

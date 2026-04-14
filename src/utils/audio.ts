@@ -187,12 +187,48 @@ export function playSFX(type: 'select' | 'sacrifice' | 'reveal'): void {
         osc.stop(ctx.currentTime + 0.3);
         break;
       case 'sacrifice':
-        osc.frequency.value = 220;
-        osc.type = 'sawtooth';
-        gain.gain.setValueAtTime(0.15, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.8);
+        // ベースの重低音（下降するサイン波）
+        // オシレーターとゲインをローカルに再定義して独立させる
+        {
+          const suckOsc = ctx.createOscillator();
+          const suckGain = ctx.createGain();
+          
+          suckOsc.type = 'sine';
+          suckOsc.frequency.setValueAtTime(150, ctx.currentTime);
+          suckOsc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.6);
+          suckGain.gain.setValueAtTime(0.5, ctx.currentTime);
+          suckGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+          
+          suckOsc.connect(suckGain);
+          suckGain.connect(masterGain!);
+          suckOsc.start();
+          suckOsc.stop(ctx.currentTime + 0.8);
+
+          // 咀嚼/捕食のノイズ音（ガチャッ/ドスン）
+          const noiseBufferSize = ctx.sampleRate * 1.0;
+          const noiseBuffer = ctx.createBuffer(1, noiseBufferSize, ctx.sampleRate);
+          const output = noiseBuffer.getChannelData(0);
+          for (let i = 0; i < noiseBufferSize; i++) {
+            output[i] = Math.random() * 2 - 1;
+          }
+          const noiseNode = ctx.createBufferSource();
+          const noiseFilter = ctx.createBiquadFilter();
+          const noiseGain = ctx.createGain();
+          
+          noiseNode.buffer = noiseBuffer;
+          noiseFilter.type = 'lowpass';
+          noiseFilter.frequency.value = 300; // 低い音だけ残す
+          
+          noiseGain.gain.setValueAtTime(0.001, ctx.currentTime);
+          noiseGain.gain.setValueAtTime(0.8, ctx.currentTime + 0.8); // カードが吸い込まれた瞬間に最大
+          noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+          
+          noiseNode.connect(noiseFilter);
+          noiseFilter.connect(noiseGain);
+          noiseGain.connect(masterGain!);
+          noiseNode.start(ctx.currentTime + 0.5);
+          noiseNode.stop(ctx.currentTime + 1.5);
+        }
         break;
       case 'reveal':
         osc.frequency.value = 528;
