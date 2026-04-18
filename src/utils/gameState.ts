@@ -83,7 +83,7 @@ export function createInitialState(): GameState {
     personas: [],
     hp: 10,
     maxHp: 10,
-    food: 6,
+    food: 30,
     coins: 30,
     currentStep: 0,
     totalSteps: 26,
