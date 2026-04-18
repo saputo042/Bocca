@@ -249,8 +249,34 @@ function buildFinalStatus(state: GameState): string {
     foodJudge = `食料の余り: ${fs.food}個。`;
   }
 
-  return `クリア時の状態——\n❤️ HP: ${fs.hp} / 10　🍞 食料: ${fs.food}　🪙 資金: ${fs.coins}枚\n生き残った従者: ${aliveNames}\n\n${judgment}\n${foodJudge}`;
+  // アイテム使用タイミング分析
+  const itemLogs = state.actionLog.filter(a => a.itemUsed);
+  let itemAnalysis = '';
+  if (itemLogs.length === 0 && state.actionLog.length > 8) {
+    itemAnalysis = '\n\n【アイテム分析】あなたは一度もアイテムを使わなかった。備蓄型か、感情に流されない型か。はたまた、そもそもアイテムを得られなかったのか。';
+  } else if (itemLogs.length > 0) {
+    // 回復薬の使用タイミングを分析
+    const potionLogs = itemLogs.filter(a => a.itemUsed === 'herb_potion');
+    if (potionLogs.length > 0) {
+      const avgHpAtUse = potionLogs.reduce((sum, a) => sum + (a.itemUsedAtHp ?? 10), 0) / potionLogs.length;
+      if (avgHpAtUse >= 6) {
+        itemAnalysis += '\n\n【アイテム分析】回復薬を早々に使用した（HPに余裕のあるうちに）。リスクを嫌い、安全圏を保つ型か。';
+      } else if (avgHpAtUse <= 3) {
+        itemAnalysis += '\n\n【アイテム分析】回復薬を瀕死状態まで温存してから使った。リスクを許容し、最後の最後まで賭ける型か。';
+      } else {
+        itemAnalysis += '\n\n【アイテム分析】回復薬を適度なタイミングで使用した。平静なバランス感覚がある。';
+      }
+    }
+    // 時代の遺物を所持したままゴールした場合
+    const hasRelic = fs.inventory.includes('ancient_relic');
+    if (hasRelic) {
+      itemAnalysis += '\n【遺物】『時代の遺物』を最後まで手放さなかった。判断や目的のないものの価値を信じる直感。';
+    }
+  }
+
+  return `クリア時の状態——\n❤️ HP: ${fs.hp} / 10　🍞 食料: ${fs.food}　🪙 資金: ${fs.coins}枚\n生き残った従者: ${aliveNames}\n\n${judgment}\n${foodJudge}${itemAnalysis}`;
 }
+
 
 // ===============================
 // 【真実の姿（True Self）】
@@ -273,7 +299,40 @@ function buildTrueSelf(state: GameState, mbtiType: string, typeDef: TypeDefiniti
     }
   }
 
-  return `${typeDef.emoji} ${typeDef.title}（${mbtiType}）\n\n${typeDef.description}\n\n${discrepancy}`;
+  // アイテム使用の傾向を分析
+  let itemInsight = '';
+  const itemLogs = state.actionLog.filter(a => a.itemUsed);
+  const neverUsedItems = itemLogs.length === 0 && state.actionLog.length > 8;
+
+  if (neverUsedItems) {
+    // 一度もアイテムを手動使用しなかった
+    itemInsight = '\n\nアイテムの一切を手放さなかった。それが備蓄本能か、感情疲崴か。';
+  } else if (itemLogs.length > 0) {
+    const potionLogs = itemLogs.filter(a => a.itemUsed === 'herb_potion');
+    if (potionLogs.length > 0) {
+      const avgHpAtUse = potionLogs.reduce((sum, a) => sum + (a.itemUsedAtHp ?? 10), 0) / potionLogs.length;
+      if (avgHpAtUse >= 6) {
+        // HP余裕ありで使用：安全志向
+        itemInsight = '\n\n危機が来る前に回復薬を使った。安全マージンを保つことに執着する型。';
+      } else if (avgHpAtUse <= 3) {
+        // 瀛死まで温存：P軸・リスク許容
+        itemInsight = '\n\nギリギリまで回復薬を温存し、極限状態で初めて使った。消費を恐れるか、最後の最後まで賭けるか。';
+      }
+    }
+    // 呼びの護符所持者
+    const hasCursed = state.inventory.includes('cursed_amulet') ||
+      itemLogs.some(a => a.itemUsed === 'cursed_amulet');
+    if (hasCursed) {
+      itemInsight += '\n「呼びの護符」を選んだ。リスクを知りた上で賭けることに瘪漢ない。あるいは、通常ではない軌道に自然と引き寄せられる何かがある。';
+    }
+    // 遺物所持者
+    const hasRelic = state.finalStatus?.inventory.includes('ancient_relic');
+    if (hasRelic) {
+      itemInsight += '\n『時代の遺物』をこの場で抉えたまま待っていた。談ぞ知れぬものに素直な心を向ける、お前の探究心だ。';
+    }
+  }
+
+  return `${typeDef.emoji} ${typeDef.title}（${mbtiType}）\n\n${typeDef.description}\n\n${discrepancy}${itemInsight}`;
 }
 
 // ===============================

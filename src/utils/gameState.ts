@@ -26,6 +26,8 @@ export interface ActionLog {
   label: string;           // 選択肢のラベル（人間が読める形）
   sacrificedName?: string; // 犠牲にした従者のカスタム名（B選択時）
   debuffedName?: string;   // デバフを受けた従者のカスタム名（A選択時）
+  itemUsed?: string;        // 使用したアイテムID（手動使用時）
+  itemUsedAtHp?: number;    // アイテム使用時のHP（使用タイミング診断用）
   resourceDelta: {         // このアクションによるリソース変動
     hp: number;
     food: number;
@@ -43,6 +45,12 @@ export interface GameState {
   maxHp: number;
   food: number;
   coins: number;
+
+  // インベントリ（所持アイテムのIDリスト）
+  inventory: string[];
+
+  // 次の選択でコスト半減フラグ（通行証の効果）
+  nextChoiceCostHalved: boolean;
 
   // 進行
   currentStep: number;     // 現在のステップ（0始まり）
@@ -67,6 +75,7 @@ export interface GameState {
     hp: number;
     food: number;
     coins: number;
+    inventory: string[];         // 残ったアイテムのIDリスト
     survivingPersonas: string[]; // 生き残った従者のカスタム名
     lastStandingName: string;    // 最後まで残った（or 最後に犠牲にされた）従者名
   } | null;
@@ -85,6 +94,8 @@ export function createInitialState(): GameState {
     maxHp: 10,
     food: 30,
     coins: 30,
+    inventory: [],
+    nextChoiceCostHalved: false,
     currentStep: 0,
     totalSteps: 26,
     stage: 'forest',
@@ -206,9 +217,48 @@ export function snapshotFinalStatus(): void {
     hp: gameState.hp,
     food: gameState.food,
     coins: gameState.coins,
+    inventory: [...gameState.inventory],
     survivingPersonas: alive.map(p => p.customName),
     lastStandingName: last,
   };
+}
+
+// ===============================
+// インベントリ管理
+// ===============================
+
+/** アイテムをインベントリに追加 */
+export function addItem(itemId: string): void {
+  gameState.inventory.push(itemId);
+}
+
+/** アイテムをインベントリから削除（最初の1個） */
+export function removeItem(itemId: string): boolean {
+  const idx = gameState.inventory.indexOf(itemId);
+  if (idx === -1) return false;
+  gameState.inventory.splice(idx, 1);
+  return true;
+}
+
+/** アイテムを所持しているか確認 */
+export function hasItem(itemId: string): boolean {
+  return gameState.inventory.includes(itemId);
+}
+
+/** 次の選択コスト半減フラグをセット（通行証の効果） */
+export function activatePassagePermit(): void {
+  gameState.nextChoiceCostHalved = true;
+  removeItem('passage_permit');
+  // 診断補正：J+1, S+1
+  gameState.mbti.J += 1;
+  gameState.mbti.S += 1;
+}
+
+/** コスト半減フラグを消費（choiceノードの実行時に呼ぶ） */
+export function consumeCostHalvedFlag(): boolean {
+  if (!gameState.nextChoiceCostHalved) return false;
+  gameState.nextChoiceCostHalved = false;
+  return true;
 }
 
 // ===============================

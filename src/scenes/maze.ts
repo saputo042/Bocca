@@ -4,6 +4,7 @@ import { SCENARIO } from '../data/scenarioData';
 import type { ScenarioNode } from '../data/scenarioData';
 import { SKILL_VESSELS } from '../data/personas';
 import type { CustomPersona } from '../data/personas';
+import { getItemById } from '../data/items';
 import {
   getGameState,
   navigateTo,
@@ -20,6 +21,10 @@ import {
   createParticles,
   sleep,
   fadeIn,
+  addItem,
+  removeItem,
+  hasItem,
+  consumeCostHalvedFlag,
 } from '../utils/gameState';
 import { playAmbienceForScene, playSFX } from '../utils/audio';
 
@@ -91,6 +96,7 @@ function buildHUD(): string {
   const alive = state.personas.filter(p => p.isAlive);
   const remaining = state.totalSteps - state.currentStep;
   const stageLabel = state.stage === 'forest' ? '🌲 森' : state.stage === 'city' ? '🌆 都市' : '👁️ 遺跡';
+  const itemCount = state.inventory.length;
 
   return `
     <div class="maze-hud" id="maze-hud">
@@ -100,6 +106,9 @@ function buildHUD(): string {
         <span class="hud-item hud-food ${state.food <= 2 ? 'hud-danger' : ''}">🍞 ${state.food}</span>
         <span class="hud-item hud-coins">🪙 ${state.coins}</span>
         <span class="hud-item hud-personas">👥 ${alive.length}体</span>
+        <button class="hud-item hud-bag ${itemCount === 0 ? 'hud-bag-empty' : ''}" id="btn-open-bag" title="アイテムを使う">
+          🎒${itemCount > 0 ? `<span class="bag-count">${itemCount}</span>` : ''}
+        </button>
       </div>
       <div class="hud-steps">
         <span class="hud-steps-label">真実の口まで</span>
@@ -108,6 +117,156 @@ function buildHUD(): string {
       </div>
     </div>
   `;
+}
+
+
+// ===============================
+// バッグ（アイテムモーダル）
+// ===============================
+
+/**
+ * HUDのバッグボタンにイベントを設定する
+ * 各シーンレンダリング後に呼ぶ
+ */
+function setupBagButton(container: HTMLElement): void {
+  // 少し遅延させてDOMが確実に存在してから設定
+  setTimeout(() => {
+    document.getElementById('btn-open-bag')?.addEventListener('click', () => {
+      openBagModal(container);
+    });
+  }, 50);
+}
+
+/** バッグモーダルを開く */
+function openBagModal(container: HTMLElement): void {
+  const state = getGameState();
+
+  // 既存モーダルがあれば削除
+  document.getElementById('bag-modal')?.remove();
+
+  const itemsHTML = state.inventory.length === 0
+    ? `<p class="bag-empty-text">── 所持アイテムはない ──</p>`
+    : state.inventory.map((id, idx) => {
+        const def = getItemById(id);
+        if (!def) return '';
+        const canUse = def.trigger === 'manual';
+        return `
+          <div class="bag-item-row">
+            <div class="bag-item-info">
+              <span class="bag-item-emoji">${def.emoji}</span>
+              <div class="bag-item-text">
+                <div class="bag-item-name">${def.name}</div>
+                <div class="bag-item-desc">${def.description}</div>
+                ${def.passiveLabel ? `<div class="bag-item-passive">🔁 ${def.passiveLabel}</div>` : ''}
+              </div>
+            </div>
+            ${canUse
+              ? `<button class="btn-use-item" data-item-id="${id}" data-item-idx="${idx}" id="use-item-${idx}">使用</button>`
+              : `<span class="bag-item-auto">【自動発動】</span>`
+            }
+          </div>
+        `;
+      }).join('');
+
+  const modal = document.createElement('div');
+  modal.id = 'bag-modal';
+  modal.className = 'bag-modal-overlay';
+  modal.innerHTML = `
+    <div class="bag-modal">
+      <div class="bag-modal-header">
+        <span class="bag-modal-title">🎒 所持アイテム</span>
+        <button class="bag-modal-close" id="bag-close">✕</button>
+      </div>
+      <div class="bag-modal-body">
+        ${itemsHTML}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  document.getElementById('bag-close')?.addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+  // 使用ボタンのイベント
+  state.inventory.forEach((id, idx) => {
+    document.getElementById(`use-item-${idx}`)?.addEventListener('click', () => {
+      useItem(id, container);
+      modal.remove();
+    });
+  });
+}
+
+/** アイテムを使用する（手動） */
+function useItem(itemId: string, container: HTMLElement): void {
+  const def = getItemById(itemId);
+  if (!def || def.trigger !== 'manual') return;
+
+  const state = getGameState();
+  const hpBefore = state.hp;
+
+  if (def.hpRestore) applyResourceDelta({ hp: def.hpRestore });
+  if (def.foodRestore) applyResourceDelta({ food: def.foodRestore });
+  if (def.coinsGain) applyResourceDelta({ coins: def.coinsGain });
+  if (def.clearDebuffs) {
+    state.personas.forEach(p => { p.debuffs = []; });
+  }
+
+  // 使用タイミングのMBTI補正（HPが高い時 vs 低い時で変わる）
+  if (itemId === 'herb_potion') {
+    if (hpBefore >= 6) {
+      addMBTIPoints({ S: 1 }); // 安全なうちに使う → S方向
+    } else if (hpBefore <= 3) {
+      addMBTIPoints({ P: 1 }); // 限界まで温存 → P方向
+    }
+  }
+  if (itemId === 'food_pack') {
+    if (state.food <= 5) {
+      addMBTIPoints({ F: 1 }); // 切羽詰まって使う → F方向（焦り）
+    } else {
+      addMBTIPoints({ J: 1 }); // 余裕あって管理 → J方向
+    }
+  }
+
+  // ActionLogに記録（アイテム使用タイミング diagnostic用）
+  recordAction({
+    step: state.currentStep,
+    type: 'event',
+    choice: `use_item_${itemId}`,
+    label: `${def.name}を使用`,
+    itemUsed: itemId,
+    itemUsedAtHp: hpBefore,
+    resourceDelta: {
+      hp: def.hpRestore ?? 0,
+      food: def.foodRestore ?? 0,
+      coins: def.coinsGain ?? 0,
+    },
+  });
+
+  removeItem(itemId);
+
+  // HUDを再描画（モーダルを閉じた後に反映）
+  const hud = document.getElementById('maze-hud');
+  if (hud && hud.parentElement) {
+    hud.outerHTML = buildHUD();
+    // 新しいHUDにバッグイベントを再設定
+    setupBagButton(container);
+  }
+
+  // 使用通知を表示
+  showItemUsedNotification(def.name, def.emoji);
+}
+
+/** アイテム使用時の通知 */
+function showItemUsedNotification(name: string, emoji: string): void {
+  const notif = document.createElement('div');
+  notif.className = 'item-used-notif';
+  notif.textContent = `${emoji} ${name} を使用した`;
+  document.body.appendChild(notif);
+  setTimeout(() => notif.classList.add('show'), 50);
+  setTimeout(() => {
+    notif.classList.remove('show');
+    setTimeout(() => notif.remove(), 400);
+  }, 2000);
 }
 
 // ===============================
@@ -166,6 +325,9 @@ function renderDialogue(container: HTMLElement, node: ScenarioNode): void {
 
   const el = document.getElementById('dialogue-text');
   if (el) sleep(200).then(() => typewriter(el, text, 30));
+
+  // バッグボタンイベントリダイアログにも登録
+  setupBagButton(container);
 
   document.getElementById('btn-next')?.addEventListener('click', () => {
     addMBTIPoints(node.options[0]?.mbtiDelta || {});
@@ -234,6 +396,7 @@ function renderChoice(container: HTMLElement, node: ScenarioNode): void {
     createParticles(document.getElementById('maze-particles')!, 15);
     const el = document.getElementById('maze-prompt');
     if (el) sleep(200).then(() => typewriter(el, node.situation, 25));
+    setupBagButton(container);
 
     document.getElementById('btn-a')?.addEventListener('click', () => {
       renderSelectA();
@@ -321,12 +484,17 @@ function renderChoice(container: HTMLElement, node: ScenarioNode): void {
     const debuffTarget = aliveNow.find(p => p.customName !== p1.customName && p.customName !== p2.customName);
     const debuffTargetName = debuffTarget?.customName || '（他の従者）';
 
-    if (optA.hpCost) applyResourceDelta({ hp: -optA.hpCost });
-    if (optA.foodCost) applyResourceDelta({ food: -optA.foodCost });
+    // 通行証によるコスト半減チェック
+    const halved = consumeCostHalvedFlag();
+    const hpCost = halved ? Math.ceil((optA.hpCost || 0) / 2) : (optA.hpCost || 0);
+    const foodCost = halved ? Math.ceil((optA.foodCost || 0) / 2) : (optA.foodCost || 0);
+
+    if (hpCost) applyResourceDelta({ hp: -hpCost });
+    if (foodCost) applyResourceDelta({ food: -foodCost });
     if (debuffTarget && optA.debuffType) applyDebuff(debuffTarget.customName, optA.debuffType);
     addMBTIPoints(optA.mbtiDelta);
 
-    const resultText = optA.description
+    const resultText = (halved ? '【通行証発動：コスト半減】\n' : '') + optA.description
       .replace('{skill1}', s1)
       .replace('{skill2}', s2)
       .replace('{debuffTarget}', debuffTargetName)
@@ -338,7 +506,7 @@ function renderChoice(container: HTMLElement, node: ScenarioNode): void {
       choice: 'A',
       label: optA.label,
       debuffedName: debuffTargetName,
-      resourceDelta: { hp: -(optA.hpCost || 0), food: -(optA.foodCost || 0), coins: 0 },
+      resourceDelta: { hp: -hpCost, food: -foodCost, coins: 0 },
     });
 
     showResult(container, node, resultText, () => { advanceStep(); renderStep(container); });
@@ -403,19 +571,38 @@ function renderBattle(container: HTMLElement, node: ScenarioNode): void {
   createParticles(document.getElementById('maze-particles')!, 10);
   const el = document.getElementById('battle-text');
   if (el) sleep(200).then(() => typewriter(el, node.situation, 25));
+  setupBagButton(container);
+
+  // 呪いの護符を持っている場合は戦闘ペナルティ通知
+  const hasCursed = hasItem('cursed_amulet');
+  if (hasCursed) {
+    setTimeout(() => showItemUsedNotification('呪いの護符', '☠️'), 300);
+  }
 
   document.getElementById('btn-fight')?.addEventListener('click', () => {
     const success = Math.random() < (fightOpt.successChance ?? 0.5);
-    if (fightOpt.hpCost && success) applyResourceDelta({ hp: -fightOpt.hpCost });
-    if (fightOpt.hpCost && !success) applyResourceDelta({ hp: -(fightOpt.hpCost) });
+    // 呪いの護符ペナルティ：バトル時にHP-1追加
+    const cursedPenalty = hasItem('cursed_amulet') ? 1 : 0;
+    if (fightOpt.hpCost && success) applyResourceDelta({ hp: -(fightOpt.hpCost + cursedPenalty) });
+    if (fightOpt.hpCost && !success) applyResourceDelta({ hp: -(fightOpt.hpCost + cursedPenalty) });
     if (fightOpt.coinGain && success) applyResourceDelta({ coins: fightOpt.coinGain });
+    // アイテム入手（バトル勝利時）
+    if (success && fightOpt.itemGain) {
+      const itemMap: Record<string, string> = {
+        '回復薬': 'herb_potion',
+        '時代の遺物': 'ancient_relic',
+      };
+      const itemId = itemMap[fightOpt.itemGain];
+      if (itemId) addItem(itemId);
+    }
     addMBTIPoints(fightOpt.mbtiDelta);
     recordAction({
       step: state.currentStep, type: 'battle', choice: 'fight',
       label: fightOpt.label,
       resourceDelta: { hp: -(fightOpt.hpCost || 0), food: 0, coins: fightOpt.coinGain && success ? fightOpt.coinGain : 0 },
     });
-    const text = success ? fightOpt.successText! : fightOpt.failureText!;
+    const itemNote = success && fightOpt.itemGain ? `\n🎒 ${fightOpt.itemGain}を入手した！` : '';
+    const text = (success ? fightOpt.successText! : fightOpt.failureText!) + itemNote;
     showResult(container, node, text, () => { advanceStep(); renderStep(container); });
   });
 
@@ -469,15 +656,26 @@ function renderShop(container: HTMLElement, node: ScenarioNode): void {
 
   const el = document.getElementById('shop-text');
   if (el) sleep(200).then(() => typewriter(el, node.situation, 20));
+  setupBagButton(container);
 
   node.options.forEach(opt => {
     document.getElementById(`shop-${opt.id}`)?.addEventListener('click', () => {
       if (opt.coinCost) applyResourceDelta({ coins: -opt.coinCost });
       if (opt.coinGain) applyResourceDelta({ coins: opt.coinGain });
       if (opt.hpCost && opt.hpCost < 0) applyResourceDelta({ hp: -opt.hpCost }); // マイナス=回復
+      // デバフ全クリア（腐屋の貫屋：全体回復薬）
       if (opt.id === 'buy1' && node.id === 9) {
-        // 全体回復薬: デバフ全クリア
         getGameState().personas.forEach(p => { p.debuffs = []; });
+      }
+      // アイテムバッグに追加（闇商人 shop = node.id 11）
+      if (node.id === 11) {
+        if (opt.id === 'buy1') {
+          // 確実な通行証 → 自動発動型アイテムとしてインベントリに追加
+          addItem('passage_permit');
+        } else if (opt.id === 'buy2') {
+          // 呼びの護符 → HP回復は購入時に完了(シナリオデータのcoinCost: 20, hpCost: -3)、インベントリに追加してバトルペナルティも持つ
+          addItem('cursed_amulet');
+        }
       }
       addMBTIPoints(opt.mbtiDelta);
       recordAction({
@@ -526,6 +724,7 @@ function renderEvent(container: HTMLElement, node: ScenarioNode): void {
 
   const el = document.getElementById('event-text');
   if (el) sleep(200).then(() => typewriter(el, node.situation, 25));
+  setupBagButton(container);
 
   node.options.forEach(opt => {
     document.getElementById(`event-${opt.id}`)?.addEventListener('click', () => {
