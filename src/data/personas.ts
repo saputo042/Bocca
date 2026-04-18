@@ -1,166 +1,199 @@
-// BOCCAゲーム 12体のペルソナデータ
+// BOCCA — 16の器（スキル性質）データ
+// 4属性: 剛🔴 / 理🔵 / 和🟢 / 盾🟡
+// 診断軸: E/I, S/N, T/F, J/P 各スコアへの寄与を定義
 
-export interface Persona {
-  id: string;
-  name: string;
-  subtitle: string;        // サブタイトル（象徴）
-  symbol: string;          // 絵文字シンボル
-  description: string;     // 短い説明文
-  positive: string;        // 光の側面
-  negative: string;        // 影の側面
-  archetype: string;       // 心理アーキタイプ
-  color: string;           // テーマカラー
-  bgGradient: string;      // カードグラデーション
+export interface SkillVessel {
+  id: string;               // 内部ID
+  name: string;             // 器の名称
+  symbol: string;           // 絵文字シンボル
+  attribute: 'power' | 'logic' | 'harmony' | 'shield'; // 4属性
+  attributeEmoji: string;   // 属性絵文字
+  description: string;      // 器の説明（ゲーム内テキスト）
+  defaultName: string;      // 命名の例（初期値としてフォームに表示）
+  typingHints: {            // この器を選ぶ人の傾向（初期選択時の診断）
+    S?: number;             // +で S方向
+    N?: number;             // +で N方向
+    E?: number;             // +で E方向
+    I?: number;             // +で I方向
+    T?: number;             // +で T方向
+    F?: number;             // +で F方向
+    J?: number;             // +で J方向
+    P?: number;             // +で P方向
+  };
 }
 
-export const PERSONAS: Persona[] = [
+export interface CustomPersona {
+  skillId: string;          // 対応するSkillVessel.id
+  customName: string;       // プレイヤーが命名した名前
+  isAlive: boolean;         // 生存状態
+  debuffs: string[];        // 付与されているデバフ（'疲労'/'汚染'/'骨折'/'恐怖'/'重傷'/'瀕死'/'呪縛'/'永遠の苦痛'）
+}
+
+// 16の器
+export const SKILL_VESSELS: SkillVessel[] = [
   {
-    id: 'sovereign',
-    name: '支配者',
-    subtitle: '王冠を被った亡霊',
-    symbol: '👑',
-    description: 'かつて全てを手にしていた。今もそれが当然だと信じている。',
-    positive: '統率力・決断力・カリスマ',
-    negative: '傲慢・支配欲・孤独への恐怖',
-    archetype: 'The Ruler',
-    color: '#C9A227',
-    bgGradient: 'linear-gradient(135deg, #1a0a00 0%, #3d2200 50%, #1a0a00 100%)',
-  },
-  {
-    id: 'wanderer',
-    name: '放浪者',
-    subtitle: '地図を持たない旅人',
-    symbol: '🌫️',
-    description: 'どこへでも行けると言い聞かせながら、どこへも帰れないことを知っている。',
-    positive: '自由・適応力・好奇心',
-    negative: '逃避・コミットメント恐怖・根無し草',
-    archetype: 'The Explorer',
-    color: '#7B9E87',
-    bgGradient: 'linear-gradient(135deg, #001a0d 0%, #003322 50%, #001a0d 100%)',
-  },
-  {
-    id: 'oracle',
-    name: '預言者',
-    subtitle: '見えすぎる眼を持つ者',
-    symbol: '👁️',
-    description: '全てが見える。だから全てが怖い。',
-    positive: '洞察力・直感・真実追求',
-    negative: '過度な批判・不信・孤立',
-    archetype: 'The Sage',
-    color: '#8B5CF6',
-    bgGradient: 'linear-gradient(135deg, #0d0023 0%, #1a0040 50%, #0d0023 100%)',
-  },
-  {
-    id: 'martyr',
-    name: '殉教者',
-    subtitle: '傷を勲章にする者',
-    symbol: '🩸',
-    description: '与え続けることで、己の価値を証明しようとしている。',
-    positive: '献身・共感・無私',
-    negative: '自己犠牲・被害者意識・依存関係',
-    archetype: 'The Caregiver',
-    color: '#DC2626',
-    bgGradient: 'linear-gradient(135deg, #1a0000 0%, #3d0000 50%, #1a0000 100%)',
-  },
-  {
-    id: 'trickster',
-    name: '道化師',
-    subtitle: '笑いで痛みを隠す者',
-    symbol: '🃏',
-    description: '笑わせることで、自分が笑われるのを先手を打っている。',
-    positive: '創造性・ユーモア・柔軟性',
-    negative: '責任回避・自己卑下・深さの欠如',
-    archetype: 'The Jester',
-    color: '#F59E0B',
-    bgGradient: 'linear-gradient(135deg, #1a1000 0%, #3d2800 50%, #1a1000 100%)',
-  },
-  {
-    id: 'phantom',
-    name: '幻影',
-    subtitle: '存在を消すことに長けた者',
-    symbol: '🌑',
-    description: '誰にも気づかれないことを望みながら、誰かに見つけてほしいと泣いている。',
-    positive: '観察力・繊細さ・深い思考',
-    negative: '自己消去・回避・表現恐怖',
-    archetype: 'The Shadow',
-    color: '#6B7280',
-    bgGradient: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%)',
-  },
-  {
-    id: 'destroyer',
-    name: '破壊者',
-    subtitle: '燃やした後に泣く者',
-    symbol: '🔥',
-    description: '壊すことしか知らなかった。でも本当は、もっとうまく愛したかった。',
-    positive: '変革力・正直さ・純粋さ',
-    negative: '衝動性・破壊衝動・後悔の連鎖',
-    archetype: 'The Destroyer',
-    color: '#EF4444',
-    bgGradient: 'linear-gradient(135deg, #1a0500 0%, #3d0a00 50%, #1a0500 100%)',
-  },
-  {
-    id: 'architect',
-    name: '設計者',
-    subtitle: '完璧な檻を建てた者',
-    symbol: '⚙️',
-    description: '全てを計画した。ただし、感情を設計図に入れ忘れた。',
-    positive: '論理・計画性・信頼性',
-    negative: '感情の抑圧・完璧主義・支配欲',
-    archetype: 'The Ruler/Creator',
-    color: '#3B82F6',
-    bgGradient: 'linear-gradient(135deg, #000d1a 0%, #001a33 50%, #000d1a 100%)',
-  },
-  {
-    id: 'child',
-    name: '永遠の子供',
-    subtitle: '成長を拒んだ者',
-    symbol: '🌸',
-    description: 'あの頃のまま止まっている。傷ついたあの瞬間から動けないでいる。',
-    positive: '純粋さ・感受性・想像力',
-    negative: '依存・現実逃避・脆弱性の過剰',
-    archetype: 'The Innocent',
-    color: '#F472B6',
-    bgGradient: 'linear-gradient(135deg, #1a0010 0%, #33001f 50%, #1a0010 100%)',
+    id: 'breakthrough',
+    name: '突破',
+    symbol: '⚔️',
+    attribute: 'power',
+    attributeEmoji: '🔴',
+    description: '壁など存在しない。ただ前へ進む力。',
+    defaultName: '野心',
+    typingHints: { E: 1, T: 1 },
   },
   {
     id: 'guardian',
-    name: '番人',
-    subtitle: '門を守り、自分を閉じ込めた者',
-    symbol: '🗡️',
-    description: '誰も傷つけないために、硬くなった。でも誰も触れられなくなった。',
-    positive: '忠誠心・責任感・保護本能',
-    negative: '過度な防御・感情の封鎖・孤独',
-    archetype: 'The Guardian',
-    color: '#10B981',
-    bgGradient: 'linear-gradient(135deg, #001a10 0%, #003322 50%, #001a10 100%)',
+    name: '守護',
+    symbol: '🛡️',
+    attribute: 'shield',
+    attributeEmoji: '🟡',
+    description: '誰かを守ることで、自分の存在意義を見出す力。',
+    defaultName: '家族',
+    typingHints: { I: 1, F: 1, J: 1, S: 1 },
   },
   {
-    id: 'lover',
-    name: '恋慕者',
-    subtitle: '愛しすぎて溺れた者',
-    symbol: '💔',
-    description: '全てを愛した。愛することで、全てを失った。',
-    positive: '情熱・共鳴・美への感受性',
-    negative: '執着・嫉妬・自己喪失',
-    archetype: 'The Lover',
-    color: '#BE185D',
-    bgGradient: 'linear-gradient(135deg, #1a0015 0%, #3d002b 50%, #1a0015 100%)',
+    id: 'analysis',
+    name: '分析',
+    symbol: '🔬',
+    attribute: 'logic',
+    attributeEmoji: '🔵',
+    description: '全てを数値と構造に還元し、最適解を導き出す力。',
+    defaultName: '理性',
+    typingHints: { T: 1, N: 1, J: 1 },
   },
   {
-    id: 'alchemist',
-    name: '錬金術師',
-    subtitle: '変容を求めて迷い続ける者',
-    symbol: '⚗️',
-    description: '全てを変えられると信じた。変えるべきは自分だったことに気づかなかった。',
-    positive: '変容力・創造性・探求心',
-    negative: '現実逃避・不満・永遠の未完成',
-    archetype: 'The Magician',
-    color: '#7C3AED',
-    bgGradient: 'linear-gradient(135deg, #0d001a 0%, #1a0033 50%, #0d001a 100%)',
+    id: 'empathy',
+    name: '共感',
+    symbol: '🫀',
+    attribute: 'harmony',
+    attributeEmoji: '🟢',
+    description: '他者の痛みをそのまま感じ取る力。それは才能か、呪いか。',
+    defaultName: '友情',
+    typingHints: { F: 1, I: 1 },
+  },
+  {
+    id: 'charm',
+    name: '魅惑',
+    symbol: '🌹',
+    attribute: 'harmony',
+    attributeEmoji: '🟢',
+    description: '言葉と存在で人を引き寄せ、思うままに動かす力。',
+    defaultName: 'カリスマ',
+    typingHints: { E: 1, F: 1, P: 1 },
+  },
+  {
+    id: 'stealth',
+    name: '隠密',
+    symbol: '🌑',
+    attribute: 'shield',
+    attributeEmoji: '🟡',
+    description: '気配を消し、影に溶け込む力。見られることへの恐怖の裏返し。',
+    defaultName: '秘密',
+    typingHints: { I: 1, T: 1, P: 1 },
+  },
+  {
+    id: 'intuition',
+    name: '直感',
+    symbol: '⚡',
+    attribute: 'power',
+    attributeEmoji: '🔴',
+    description: '論理を超えた直接的な知覚。答えが「分かる」という感覚。',
+    defaultName: '本能',
+    typingHints: { N: 1, P: 1 },
+  },
+  {
+    id: 'creation',
+    name: '創造',
+    symbol: '✨',
+    attribute: 'logic',
+    attributeEmoji: '🔵',
+    description: '無から何かを生み出す力。混沌の中に美と意味を見出す。',
+    defaultName: '才能',
+    typingHints: { N: 1, P: 1, F: 1 },
+  },
+  {
+    id: 'authority',
+    name: '権威',
+    symbol: '👑',
+    attribute: 'power',
+    attributeEmoji: '🔴',
+    description: '他者を従わせる圧倒的な力。恐れられることと愛されることは紙一重。',
+    defaultName: '地位',
+    typingHints: { E: 1, T: 1, J: 1 },
+  },
+  {
+    id: 'calculation',
+    name: '打算',
+    symbol: '⚖️',
+    attribute: 'logic',
+    attributeEmoji: '🔵',
+    description: '全ての行動の損得を計算し、利益を最大化する力。',
+    defaultName: '財産',
+    typingHints: { T: 1, J: 1, S: 1 },
+  },
+  {
+    id: 'devotion',
+    name: '献身',
+    symbol: '🕯️',
+    attribute: 'shield',
+    attributeEmoji: '🟡',
+    description: '自分を尽く捧げる力。美しい自己消耗の螺旋。',
+    defaultName: '愛情',
+    typingHints: { F: 1, J: 1, S: 1, I: 1 },
+  },
+  {
+    id: 'madness',
+    name: '狂気',
+    symbol: '🌀',
+    attribute: 'power',
+    attributeEmoji: '🔴',
+    description: '理性の檻を溶かし、常識の外側へ踏み出す力。',
+    defaultName: '衝動',
+    typingHints: { N: 1, P: 1, E: 1 },
+  },
+  {
+    id: 'obsession',
+    name: '執着',
+    symbol: '🩸',
+    attribute: 'harmony',
+    attributeEmoji: '🟢',
+    description: '手放せないものへの、狂おしいほどの固執。失うことへの最大の恐怖。',
+    defaultName: '未練',
+    typingHints: { F: 1, J: 1, I: 1 },
+  },
+  {
+    id: 'endurance',
+    name: '忍耐',
+    symbol: '🗿',
+    attribute: 'shield',
+    attributeEmoji: '🟡',
+    description: '全てを受け入れ、耐え続ける力。動かない岩は何も傷つけない。',
+    defaultName: '尊厳',
+    typingHints: { I: 1, S: 1, J: 1 },
+  },
+  {
+    id: 'projection',
+    name: '転嫁',
+    symbol: '🎭',
+    attribute: 'logic',
+    attributeEmoji: '🔵',
+    description: '自分の痛みや罪を他者へと押し付ける力。最も冷酷な生存本能。',
+    defaultName: '正義',
+    typingHints: { T: 1, E: 1, P: 1 },
+  },
+  {
+    id: 'transcendence',
+    name: '超越',
+    symbol: '🌌',
+    attribute: 'harmony',
+    attributeEmoji: '🟢',
+    description: '全てを超えた視点から世界を俯瞰する力。孤高の自由、あるいは孤独。',
+    defaultName: '自由',
+    typingHints: { N: 1, I: 1, P: 1 },
   },
 ];
 
-// ペルソナIDからペルソナを取得
-export function getPersonaById(id: string): Persona | undefined {
-  return PERSONAS.find(p => p.id === id);
+// IDからSkillVesselを取得
+export function getSkillById(id: string): SkillVessel | undefined {
+  return SKILL_VESSELS.find(s => s.id === id);
 }

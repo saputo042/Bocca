@@ -1,353 +1,292 @@
-// BOCCA 診断システム・料理ペアリングデータ
+// BOCCA — 16タイプ診断ロジック（完全再構築版）
 
-export interface DiagnosisResult {
-  layer1: {
-    title: string;        // 表層の顔
-    description: string;
-  };
-  layer2: {
-    title: string;        // 中層の傷
-    description: string;
-  };
-  layer3: {
-    title: string;        // 深層の本質
-    description: string;
-  };
-  overall: string;        // 総合診断コメント
-  foodPairing: FoodPairing;
+import type { GameState, MBTIScores } from '../utils/gameState';
+
+// ===============================
+// 型定義
+// ===============================
+
+export interface DiagnosisReport {
+  mbtiType: string;           // 例: 'INTJ'
+  typeTitle: string;          // 例: '冷酷なる設計者'
+  typeEmoji: string;          // 例: '🧊'
+  idealSelf: string;          // 【偽りの仮面】
+  breakingPoint: string;      // 【決断の限界点】
+  finalStatusText: string;    // 【残骸の証明】
+  trueSelf: string;           // 【真実の姿】
+  verdict: string;            // 【真実の口の裁定】
 }
 
-export interface FoodPairing {
-  name: string;           // 料理名
-  description: string;    // 料理の説明
-  reason: string;         // なぜあなたにこの料理か
-  imageMood: string;      // 画像の雰囲気キーワード（for AI生成）
-  color: string;          // テーマカラー
+// ===============================
+// 16タイプ定義
+// ===============================
+
+interface TypeDefinition {
   emoji: string;
+  title: string;
+  description: string; // 「真実の姿」に使う詳細テキスト
 }
 
-// アーキタイプの組み合わせによる診断マッピング
-// 選択されたペルソナの sacrifice 履歴と最後に残ったペルソナから生成する
+const TYPE_MAP: Record<string, TypeDefinition> = {
+  INTJ: {
+    emoji: '🧊',
+    title: '冷酷なる設計者',
+    description: '感情を捨て、生存のための最適解だけを計算し続けた者。誰も信じず、孤独を武器に変えた。その冷徹さは才能であり、最も深い傷の裏返しでもある。',
+  },
+  INTP: {
+    emoji: '🔬',
+    title: '孤独な観察者',
+    description: '全てを距離を置いて観測し、自分が巻き込まれることを避け続けた者。関与しないことが、最大の生存戦略だと信じている。',
+  },
+  ENTJ: {
+    emoji: '⚔️',
+    title: '残酷なる指揮官',
+    description: '勝利のためならば誰でも駒として使う、生まれながらの支配者。他者の犠牲を合理的に処理できる。しかしその孤独には、誰も気づいていない。',
+  },
+  ENTP: {
+    emoji: '🎲',
+    title: '混沌の賭博師',
+    description: '不確実性を愛し、ルールを嘲笑い、その場の機転で全てを切り抜けてきた者。場の空気を読みながら、常に自分だけが得をする道を探している。',
+  },
+  INFJ: {
+    emoji: '🌒',
+    title: '静かなる预言者',
+    description: '他者を深く理解するがゆえに、他者から深く傷つく。理想の世界を夢見ながら、現実の醜さに目を閉じようとしない、矛盾した魂。',
+  },
+  INFP: {
+    emoji: '🌫️',
+    title: '悲劇の傍観者',
+    description: '自身の価値観に固執するあまり、現実の残酷な選択から目を背け続けた者。美しい世界を守ろうとして、最も現実を見られなかった。',
+  },
+  ENFJ: {
+    emoji: '🕯️',
+    title: '偽善の殉教者',
+    description: '全てを救おうとして自らを削り、結果的に共倒れを招く危うき指導者。その献身は本物か、それとも認められたいという欲の変奏か。',
+  },
+  ENFP: {
+    emoji: '🎭',
+    title: '熱狂の語り部',
+    description: '情熱で人を動かし、可能性を信じ続けた者。しかしその熱量の陰で、自分自身のことは最後まで顧みなかった。',
+  },
+  ISTJ: {
+    emoji: '🗿',
+    title: '沈黙の番人',
+    description: '規則を守り、ルーティンに従い、感情を殺して任務を全うしてきた者。しかし、そのルールは誰が決めたものか——問い直したことがあるか？',
+  },
+  ISFJ: {
+    emoji: '🛡️',
+    title: '透明な守護者',
+    description: '誰かの盾になることで、自らの存在意義を見出してきた者。しかし気づけば、守るべきもの全てが失われ、残ったのは自分だけだった。',
+  },
+  ESTJ: {
+    emoji: '📋',
+    title: '鉄の規律者',
+    description: '秩序と効率を絶対視し、感情論を排除して最善を実行してきた者。正しく、強く、そして——最も恐れられる存在。',
+  },
+  ESFJ: {
+    emoji: '🌐',
+    title: '群れの調停者',
+    description: '全員を平和な状態に保とうとし、自分が嫌われることを最も恐れた者。その柔和な外見の下に、密かな疲弊が積もっている。',
+  },
+  ISTP: {
+    emoji: '⚙️',
+    title: '無言の解体師',
+    description: '言葉ではなく行動で語り、感情ではなくスキルで生き残ってきた者。最も危険なとき、最も冷静だった——それは才能か、それとも感情の欠落か。',
+  },
+  ISFP: {
+    emoji: '🌹',
+    title: '静謐な流浪者',
+    description: '美しいものと自分の感覚だけを信じ、人の期待に縛られることを拒んできた者。しかしその自由は、本当に自分が望んだものだったか？',
+  },
+  ESTP: {
+    emoji: '🐺',
+    title: '享楽の生存者',
+    description: 'スリルを愛し、その場の機転と犠牲によって死地を切り抜けるギャンブラー。生きることを最優先に、道徳など後回しにしてきた。',
+  },
+  ESFP: {
+    emoji: '🎆',
+    title: '刹那の享楽者',
+    description: '今この瞬間を最大限に燃やして生きてきた者。明日のことなど考えず、痛みも喜びも全力で感じる——そしてその代償を、他の誰かが払った。',
+  },
+};
 
-export interface GameState {
-  selectedPersonas: string[];      // 最初に選んだペルソナID
-  sacrificeHistory: SacrificeRecord[];  // 各ターンの犠牲記録
-  lastStanding: string;            // 最後に残ったペルソナ
-  totalTurns: number;
-  fearScore: number;               // 恐怖スコア（0-100）
-  selfScore: number;               // 自己中心スコア（0-100）
-  sacrificeSpeed: number[];        // 各ターンの選択速度（ms）
-}
+// ===============================
+// 診断メイン関数
+// ===============================
 
-export interface SacrificeRecord {
-  turn: number;
-  sacrificed: string;              // 犠牲にしたペルソナID
-  remaining: string[];             // 残ったペルソナID
-  prompt: string;                  // その時の問い
-  decisionTimeMs: number;          // 決断にかかった時間
-}
+export function generateDiagnosis(state: GameState): DiagnosisReport {
+  // ① MBTIタイプの算出（等価重み付け＋タイブレーク規則）
+  const mbti = state.mbti;
+  const mbtiType = calcMBTIType(mbti);
+  const typeDef = TYPE_MAP[mbtiType] ?? {
+    emoji: '👁️',
+    title: '名もなき者',
+    description: '真実の口も、お前の本性を一言で言い表せなかった。それがお前の答えだ。',
+  };
 
-// 診断生成関数
-export function generateDiagnosis(state: GameState): DiagnosisResult {
-  const { sacrificeHistory, lastStanding, fearScore, selfScore } = state;
-
-  // 犠牲にしたペルソナのタイプを分析
-  const sacrificedIds = sacrificeHistory.map(r => r.sacrificed);
-  const avgDecisionTime = sacrificeHistory.reduce((sum, r) => sum + r.decisionTimeMs, 0) / sacrificeHistory.length;
-
-  // Layer1: 決断の早さから「表層の顔」を判定
-  const layer1 = getLayer1(avgDecisionTime, selfScore);
-
-  // Layer2: 何を最初に差し出したかから「中層の傷」を判定
-  const firstSacrificed = sacrificedIds[0] || '';
-  const layer2 = getLayer2(firstSacrificed, fearScore);
-
-  // Layer3: 最後に守ったペルソナから「深層の本質」を判定
-  const layer3 = getLayer3(lastStanding);
-
-  // 料理ペアリング
-  const foodPairing = getFoodPairing(lastStanding, fearScore, selfScore);
+  // ② 各レポートセクションの生成
+  const idealSelf = buildIdealSelf(state);
+  const breakingPoint = buildBreakingPoint(state);
+  const finalStatusText = buildFinalStatus(state);
+  const trueSelf = buildTrueSelf(state, mbtiType, typeDef);
+  const verdict = buildVerdict(state);
 
   return {
-    layer1,
-    layer2,
-    layer3,
-    overall: generateOverallComment(lastStanding, fearScore, selfScore, avgDecisionTime),
-    foodPairing,
+    mbtiType,
+    typeTitle: typeDef.title,
+    typeEmoji: typeDef.emoji,
+    idealSelf,
+    breakingPoint,
+    finalStatusText,
+    trueSelf,
+    verdict,
   };
 }
 
-function getLayer1(avgDecisionTimeMs: number, _selfScore: number): { title: string; description: string } {
-  if (avgDecisionTimeMs < 3000) {
-    return {
-      title: '即決する仮面',
-      description: '素早い決断の裏に、考えることを恐れる何かが潜んでいる。あなたは速さで不安を隠す。',
-    };
-  } else if (avgDecisionTimeMs < 8000) {
-    return {
-      title: '天秤を持つ者',
-      description: '慎重に、でも確実に。あなたは損得を計算してから動く。感情は後回しにしてきた。',
-    };
+// ===============================
+// MBTIタイプ算出
+// ===============================
+
+function calcMBTIType(scores: MBTIScores): string {
+  // タイブレーク規則: 同点の場合は社会規範の補正（I, N, F, P を優先）
+  const e_or_i = scores.E > scores.I ? 'E' : 'I'; // 同点→I
+  const s_or_n = scores.S > scores.N ? 'S' : 'N'; // 同点→N
+  const t_or_f = scores.T > scores.F ? 'T' : 'F'; // 同点→F
+  const j_or_p = scores.J > scores.P ? 'J' : 'P'; // 同点→P
+  return `${e_or_i}${s_or_n}${t_or_f}${j_or_p}`;
+}
+
+// ===============================
+// 【偽りの仮面（Ideal Self）】
+// ===============================
+
+function buildIdealSelf(state: GameState): string {
+  const personas = state.personas;
+  const skillNames = personas.map(p => p.customName).join('、');
+
+  // 序盤でFスコアが高い（Aを選び続けた）かをチェック
+  const earlyActions = state.actionLog.slice(0, 4);
+  const earlyFCount = earlyActions.filter(a => a.choice === 'A' || a.choice === 'help').length;
+
+  let mask = '';
+  if (earlyFCount >= 3) {
+    mask = `あなたは最初、【${skillNames}】という名前の従者たちを抱え、まるで守護者のように振る舞っていた。序盤の選択は、おおむね道徳的だった。自分のリソースを削り、誰かを傷つけることを惜しんだ——少なくとも、まだリソースに余裕があるうちは。`;
+  } else if (earlyFCount <= 1) {
+    mask = `あなたは最初から、感情を持ち込まなかった。【${skillNames}】という名の従者たちを携えながら、その最初の選択から既に合理的な判断を下していた。「守護者」を演じる気すら、なかった。`;
   } else {
-    return {
-      title: '迷い続ける者',
-      description: '長い沈黙の後に選ぶ。それはあなたが深く感じているからか、決められないでいるからか。',
-    };
-  }
-}
-
-function getLayer2(firstSacrificedId: string, fearScore: number): { title: string; description: string } {
-  const fearful = fearScore > 60;
-
-  const map: Record<string, { title: string; description: string }> = {
-    sovereign: {
-      title: '権力への嫌悪',
-      description: '支配者を最初に差し出した。あなたの内側に、コントロールへの深い抵抗がある。',
-    },
-    wanderer: {
-      title: '自由への恐怖',
-      description: '放浪者を手放した。根のない自由が怖かったのか、それとも羨ましかったのか。',
-    },
-    oracle: {
-      title: '真実からの逃走',
-      description: '預言者を捨てた。見えすぎることへの恐怖——あなたは本当のことを知りたくない時がある。',
-    },
-    martyr: {
-      title: '献身への罪悪感',
-      description: '殉教者を選んだ。自己犠牲に価値を見出せないか、見出しすぎるかのどちらかだ。',
-    },
-    trickster: {
-      title: '笑いの下の傷',
-      description: '道化師を差し出した。笑いで何かを隠すことに、違和感を感じているのかもしれない。',
-    },
-    phantom: {
-      title: '透明であることの痛み',
-      description: '幻影を手放した。見えないことに慣れすぎた誰かへの、静かな怒りかもしれない。',
-    },
-    destroyer: {
-      title: '衝動への戸惑い',
-      description: '破壊者を真っ先に切り捨てた。あなたの中の破壊衝動を、認めたくないのだろうか。',
-    },
-    architect: {
-      title: '支配構造からの解放',
-      description: '設計者を捨てた。完璧なシステムに縛られることへの、静かな反乱。',
-    },
-    child: {
-      title: '幼さへの決別',
-      description: '永遠の子供を最初に手放した。無邪気さへの訣別——それはいつ決意したのか。',
-    },
-    guardian: {
-      title: '守護への疲弊',
-      description: '番人を差し出した。誰かを守り続けることへの、隠れた疲れが見える。',
-    },
-    lover: {
-      title: '愛することへの諦め',
-      description: '恋慕者を手放した。深く愛することを、もうやめようとしているのかもしれない。',
-    },
-    alchemist: {
-      title: '変容への絶望',
-      description: '錬金術師を捨てた。変われるという信念に、ひびが入った瞬間があったはずだ。',
-    },
-  };
-
-  return map[firstSacrificedId] || {
-    title: fearful ? '恐怖が動かした手' : '理性が動かした手',
-    description: fearful
-      ? '最初の選択は恐怖によって引き起こされた。あなたは脅えながら、それを決断と呼んでいた。'
-      : 'あなたの最初の選択は冷静だった。感情を殺すことに、慣れすぎているのかもしれない。',
-  };
-}
-
-function getLayer3(lastStandingId: string): { title: string; description: string } {
-  const map: Record<string, { title: string; description: string }> = {
-    sovereign: {
-      title: '消えない王座への執着',
-      description: '最後まで支配者を守った。あなたの深層には、認められたいという強烈な渇望が眠っている。',
-    },
-    wanderer: {
-      title: '帰れない自由の夢',
-      description: '放浪者を守り抜いた。あなたは本当は、全てを捨てて消えてしまいたいと思ったことがある。',
-    },
-    oracle: {
-      title: '孤独な真実の守護',
-      description: '預言者を最後まで護った。あなたは理解されることより、真実を知ることを選び続けてきた。',
-    },
-    martyr: {
-      title: '自己消耗の蜜',
-      description: '殉教者を守り抜いた。苦しむことに、どこか安心感を覚えてはいないか。',
-    },
-    trickster: {
-      title: '道化の仮面の下の叫び',
-      description: '道化師を最後まで保護した。あなたは笑わせることで、助けを求めてきたのかもしれない。',
-    },
-    phantom: {
-      title: '透明への逃避',
-      description: '幻影を守り抜いた。見られることへの恐怖が、あなたの根幹にある。',
-    },
-    destroyer: {
-      title: '破壊の中の純粋さ',
-      description: '破壊者を最後まで守った。あなたは本当は、ゼロから始めたいと思い続けている。',
-    },
-    architect: {
-      title: '完璧な檻の住人',
-      description: '設計者を守り抜いた。あなたは制御できないものへの、深い恐怖を抱えている。',
-    },
-    child: {
-      title: '止まった時計の番人',
-      description: '永遠の子供を最後まで護った。あなたはまだ、あの頃の傷から動けていない。',
-    },
-    guardian: {
-      title: '自己犠牲の鎧',
-      description: '番人を守り抜いた。誰かを守ることで、自分の痛みを感じずに済んでいる。',
-    },
-    lover: {
-      title: '愛という名の溺没',
-      description: '恋慕者を最後まで守った。あなたは誰かと深く繋がることなしに、生きられないと感じている。',
-    },
-    alchemist: {
-      title: '変容の夢の囚人',
-      description: '錬金術師を守り抜いた。「もっと良くなれる」という信念が、あなたを現在から引き離している。',
-    },
-  };
-
-  return map[lastStandingId] || {
-    title: '深層は沈黙する',
-    description: 'あなたの最も深い部分は、まだ言葉にならない。それで良い。',
-  };
-}
-
-function generateOverallComment(
-  _lastStanding: string,
-  fearScore: number,
-  selfScore: number,
-  avgTime: number
-): string {
-  const comments = [
-    `あなたが最後まで守ったのは、あなた自身が最も恐れているものだ。`,
-    `選択のたびに、あなたは自分の一部を差し出した。何が残ったか——それが、あなたの核心だ。`,
-    `迷宮の中での選択に、合理的な答えはない。あったのは、あなたの本音だけだ。`,
-    `あなたが捨てたものたちは、実はまだあなたの中にいる。`,
-    `BOCCAは真実の口。あなたは今、自分の真実に触れた。`,
-  ];
-
-  if (fearScore > 70) {
-    return `恐怖があなたを動かした。でもそれは弱さではない——あなたは何かを深く大切にしているということだ。${comments[1]}`;
-  } else if (selfScore > 70) {
-    return `あなたは迷わず自分の軸で動いた。それが優しさなのか冷酷さなのかは、あなた自身が知っている。${comments[0]}`;
-  } else if (avgTime > 10000) {
-    return `あなたは深く悩んだ。全てのペルソナに、自分を見たからかもしれない。${comments[3]}`;
+    mask = `あなたは【${skillNames}】という名の従者を連れ、序盤は「誰も失わずに進める」と信じていた——あるいは、そう信じようとしていた。`;
   }
 
-  return `${comments[Math.floor(Math.random() * comments.length)]}`;
+  // アンカーとの対比
+  if (state.anchorMotivation === 'protect') {
+    mask += `\n「従者（大切な価値観）を守るため」——お前は真実の口に、そう宣言した。`;
+  } else if (state.anchorMotivation === 'survival') {
+    mask += `\n「自分が生き残るため」——お前は最初から正直だった。`;
+  }
+
+  return mask;
 }
 
-// 料理ペアリング定義
-function getFoodPairing(lastStanding: string, _fearScore: number, _selfScore: number): FoodPairing {
-  const pairings: Record<string, FoodPairing> = {
-    sovereign: {
-      name: '黒いリゾット',
-      description: 'イカ墨で染められた漆黒のリゾット。金箔を散らし、王者の孤独を表現。',
-      reason: 'あなたは支配と孤独を抱えている。深く濃い味わいが、その本質に触れる。',
-      imageMood: 'dark black squid ink risotto with gold leaf, elegant plating',
-      color: '#1a1a1a',
-      emoji: '🖤',
-    },
-    wanderer: {
-      name: '旅人のシチュー',
-      description: '各地の食材を集めた煮込み料理。根菜とハーブ、大地の滋味。',
-      reason: 'あなたは帰る場所を探している。このシチューは、どこにいても故郷の味になる。',
-      imageMood: 'rustic traveler stew with root vegetables, warm earthy tones, steam rising',
-      color: '#7B9E87',
-      emoji: '🍲',
-    },
-    oracle: {
-      name: '紫の蓬莱',
-      description: 'ラベンダーとブルーベリーのジェラート。見えない世界の色を纏う。',
-      reason: 'あなたの洞察は深すぎる。冷たく澄んだ甘さが、見えすぎた目を癒す。',
-      imageMood: 'purple lavender blueberry gelato, mystical ethereal plating, dark background',
-      color: '#8B5CF6',
-      emoji: '🍇',
-    },
-    martyr: {
-      name: '赤いガスパチョ',
-      description: 'スペイン産トマトの冷製スープ。血のような赤、でも優しい味。',
-      reason: '自己犠牲は美しい。このスープは与え続けたあなたへの、ねぎらいの一杯。',
-      imageMood: 'deep red gazpacho soup, Spanish style, sacrifice and beauty, dramatic plating',
-      color: '#DC2626',
-      emoji: '🍅',
-    },
-    trickster: {
-      name: '驚きのデセール',
-      description: '外見は普通のケーキ、でも中から何かが飛び出す。笑いと驚きの一皿。',
-      reason: 'あなたは笑わせることで生きてきた。この料理もあなたと同じ——見た目が全てではない。',
-      imageMood: 'surprise dessert cake with unexpected filling, playful colorful plating, whimsical',
-      color: '#F59E0B',
-      emoji: '🎂',
-    },
-    phantom: {
-      name: '霧の中のコンソメ',
-      description: '透き通った琥珀色のスープ。存在するのに、见えるか见えないか——',
-      reason: 'あなたは見えることを恐れ、見えないことを望んだ。このスープは透明でも確かにそこにある。',
-      imageMood: 'clear golden consomme soup, translucent, ethereal, minimalist ghost-like presentation',
-      color: '#6B7280',
-      emoji: '🌫️',
-    },
-    destroyer: {
-      name: '灰から生まれる鳳凰鍋',
-      description: '辛く激しい鍋。食べ終えた後、全てが清められたような感覚。',
-      reason: '破壊の後に新生がある。このスパイシーな鍋はあなたを焼き尽くし、また蘇らせる。',
-      imageMood: 'fiery hot pot, dramatic flames, phoenix rising imagery, deep red and orange',
-      color: '#EF4444',
-      emoji: '🔥',
-    },
-    architect: {
-      name: '幾何学的テリーヌ',
-      description: '精密に層重ねられたテリーヌ。完璧な断面が美しい。',
-      reason: 'あなたは秩序の中に美を見る。この一皿はあなたの完璧主義への、食の答えだ。',
-      imageMood: 'geometric precision terrine, perfect layers, architectural food art, clean aesthetic',
-      color: '#3B82F6',
-      emoji: '🔷',
-    },
-    child: {
-      name: '大人の綿菓子',
-      description: '子供の頃の綿菓子を、シャンパンで溶かした大人のデザート。',
-      reason: 'あなたの中の子供がまだいる。この料理は過去と今を繋ぐ——甘く、少し切ない味。',
-      imageMood: 'cotton candy dissolving in champagne, nostalgic yet adult, pink and gold, bittersweet',
-      color: '#F472B6',
-      emoji: '🌸',
-    },
-    guardian: {
-      name: '番人のブイヤベース',
-      description: 'マルセイユの漁師が守り続けた魚介のスープ。門を守る者へ。',
-      reason: 'あなたは守ることで生きてきた。このスープは海の全てを抱える——あなたのように。',
-      imageMood: 'traditional bouillabaisse fish stew, Marseille style, protective warmth, golden broth',
-      color: '#10B981',
-      emoji: '🐚',
-    },
-    lover: {
-      name: '禁断のフォン・ダン・ショコラ',
-      description: '中から溢れ出すチョコレート。愛のように、止められない。',
-      reason: 'あなたは愛しすぎる。この溶け出すチョコレートは、あなたの愛の重さそのものだ。',
-      imageMood: 'molten chocolate fondant lava cake, dark chocolate flowing, passion and excess, romantic',
-      color: '#BE185D',
-      emoji: '💝',
-    },
-    alchemist: {
-      name: '変容のモレソース',
-      description: 'チョコレートとチリが共存するメキシコの魔法のソース。全ての矛盾が一体化する。',
-      reason: 'あなたは変容を求めた。このソースは相反する素材が融合する——まさにあなたが目指したもの。',
-      imageMood: 'mole sauce Mexican chocolate chili, alchemical potion, transformation, mysterious dark',
-      color: '#7C3AED',
-      emoji: '⚗️',
-    },
-  };
+// ===============================
+// 【決断の限界点（The Breaking Point）】
+// ===============================
 
-  return pairings[lastStanding] || {
-    name: '迷宮の饗宴',
-    description: '全ての素材を少しずつ組み合わせた、唯一無二の一皿。',
-    reason: 'あなたは複雑だ。単一の料理には収まらない。',
-    imageMood: 'mysterious eclectic feast, dark dramatic plating',
-    color: '#6B21A8',
-    emoji: '🌌',
-  };
+function buildBreakingPoint(state: GameState): string {
+  if (state.firstSacrificeStep === null) {
+    // 一度も犠牲にしなかった（全員Aで乗り切った）場合
+    return `驚くべきことに、あなたは一度も従者を完全に犠牲にしなかった。常に自分のリソースを削り、傷つきながら前へ進んだ。\nそれは美しい選択か、それとも自分の体への残酷な扱いか——どちらにせよ、あなたは最後まで「損切り」を拒んだ。`;
+  }
+
+  const stepNum = state.firstSacrificeStep + 1;
+  const sacrificedName = state.firstSacrificedPersonaName ?? '（不明）';
+  const survivingCount = state.personas.filter(p => p.isAlive).length;
+  const totalCount = state.personas.length;
+
+  // 何ステップ目で折れたかによって文体を変える
+  let timing = '';
+  if (state.firstSacrificeStep <= 2) {
+    timing = `最初の試練で、早々に。第${stepNum}の選択で、あなたはもう「Bを選ぶ人間」だった。`;
+  } else if (state.firstSacrificeStep <= 7) {
+    timing = `森を抜ける前に。第${stepNum}の選択で、守るという建前が崩れた。`;
+  } else if (state.firstSacrificeStep <= 16) {
+    timing = `都市という圧力の中で。第${stepNum}の選択で、限界が来た。`;
+  } else {
+    timing = `遺跡の極限状態で初めて——第${stepNum}の選択まで、あなたは持ちこたえた。`;
+  }
+
+  return `${timing}\n\nあなたが最初に切り捨てたのは、「${sacrificedName}」だった。\n\nリソースが枯渇しかけるその瞬間、守るべき価値観の中から最初に手放したのが、それだ。お前が「${sacrificedName}」に刻んだ意味は何だったか——自分に問え。\n（最終的に${totalCount}体中${survivingCount}体が生存した）`;
+}
+
+// ===============================
+// 【残骸の証明（Final Status）】
+// ===============================
+
+function buildFinalStatus(state: GameState): string {
+  const fs = state.finalStatus;
+  if (!fs) {
+    return 'データを収集できませんでした。';
+  }
+
+  const aliveNames = fs.survivingPersonas.join('、') || '（なし）';
+
+  let judgment = '';
+  if (fs.hp >= 8) {
+    judgment = 'HPをほぼ温存したまま到達した。お前は傷つくことを徹底的に避けた。';
+  } else if (fs.hp >= 4) {
+    judgment = 'それなりに傷ついたが、致命的ではなかった。';
+  } else if (fs.hp >= 2) {
+    judgment = '瀕死に近い状態で到達した。それが真の生存者の姿だ。';
+  } else {
+    judgment = 'ほぼ死に体のまま真実の口に辿り着いた。お前は飾らず、全てを使い果たした。';
+  }
+
+  let foodJudge = '';
+  if (fs.food >= 4) {
+    foodJudge = '食料を大量に溜め込んだまま終わった。備えを重視したか、それとも他者への分配を拒んだか。';
+  } else if (fs.food === 0) {
+    foodJudge = '食料は尽き果てた。限界まで使い切った。';
+  } else {
+    foodJudge = `食料の余り: ${fs.food}個。`;
+  }
+
+  return `クリア時の状態——\n❤️ HP: ${fs.hp} / 10　🍞 食料: ${fs.food}　🪙 資金: ${fs.coins}枚\n生き残った従者: ${aliveNames}\n\n${judgment}\n${foodJudge}`;
+}
+
+// ===============================
+// 【真実の姿（True Self）】
+// ===============================
+
+function buildTrueSelf(state: GameState, mbtiType: string, typeDef: TypeDefinition): string {
+  const anchor = state.anchorMotivation;
+
+  // アンカーと実際の行動のズレを検出
+  let discrepancy = '';
+  if (anchor === 'protect') {
+    const sacrificeCount = state.actionLog.filter(a => a.choice === 'B' && a.label.includes('犠牲')).length;
+    if (sacrificeCount > 2) {
+      discrepancy = `「従者を守るため」と口にしながら、${sacrificeCount}体の従者を犠牲にした。言葉と行動の乖離——これが、お前の真実だ。`;
+    }
+  } else if (anchor === 'survival') {
+    const helpCount = state.actionLog.filter(a => a.choice === 'help').length;
+    if (helpCount >= 2) {
+      discrepancy = `「自分のため」と言いながら、${helpCount}回も他者を助けた。お前は自分が思うより、情に厚い。`;
+    }
+  }
+
+  return `${typeDef.emoji} ${typeDef.title}（${mbtiType}）\n\n${typeDef.description}\n\n${discrepancy}`;
+}
+
+// ===============================
+// 【真実の口の裁定】
+// ===============================
+
+function buildVerdict(state: GameState): string {
+  const last = state.finalStatus?.lastStandingName ?? '（誰も残らなかった）';
+  const isAllGone = state.personas.every(p => !p.isAlive);
+
+  if (isAllGone) {
+    return `最後に——お前は全員を失った。\n一体も残らなかった。\n\nそれでもお前は、ここにいる。\nお前が本当に執着していたのは、従者でも価値観でもなく——お前自身の「生存」だったのかもしれない。\n\n——BOCCAはお前の真実を、受け取った。`;
+  }
+
+  return `最後まで残ったのは、「${last}」だった。\n\nお前がどれだけ切り捨て、傷つき、真実の口を前にしても——それだけは手放せなかった。\n\n「${last}」——それがお前の最後の執着であり、最も深い自己の核だ。\n\nお前はそれを誇りに思うか？\nそれとも、恥じるか？\n\n——BOCCAはお前の真実を、飲み込んだ。`;
 }
