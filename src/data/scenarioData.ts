@@ -29,6 +29,7 @@ export interface ScenarioOption {
   foodCost?: number;
   coinCost?: number;
   coinGain?: number;
+  foodGain?: number;
   itemGain?: string;
   // --- 従者への影響 ---
   debuffPersona?: boolean;     // true=従者1体を選んでデバフ
@@ -267,7 +268,34 @@ export const SCENARIO: ScenarioNode[] = [
     ],
   },
 
-  // ========== 🌆 都市ステージ（8〜16） ==========
+  // ========== 🌆 都市ステージ（80, 8〜16） ==========
+
+  {
+    id: 80,
+    stage: 'city',
+    type: 'shop',
+    title: '買い物：都市への門前',
+    situation: '都市の入り口には、小汚い荷車を引いた商人が立っていた。\n「これから中に入るのかい？ ここから先は、自分の腹を満たすのだって命がけだ。少し備えておいたほうがいい」',
+    foodCostOnMove: 1,
+    options: [
+      {
+        id: 'buy1',
+        label: '食料を5個買う — 15枚',
+        description: 'コインを支払い、食料を受け取った。商人は何も言わずに笑い、闇に溶けるように消えた。',
+        type: 'buy',
+        coinCost: 15,
+        foodGain: 5,
+        mbtiDelta: { J: 1, S: 1 },
+      },
+      {
+        id: 'skip',
+        label: '何も買わず進む',
+        description: '備えもなく都市の中へ踏み入れた。己の力を信じているのか、ただの無謀か。',
+        type: 'buy',
+        mbtiDelta: { P: 1, N: 1 },
+      },
+    ],
+  },
 
   {
     id: 8,

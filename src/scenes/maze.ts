@@ -662,6 +662,7 @@ function renderShop(container: HTMLElement, node: ScenarioNode): void {
     document.getElementById(`shop-${opt.id}`)?.addEventListener('click', () => {
       if (opt.coinCost) applyResourceDelta({ coins: -opt.coinCost });
       if (opt.coinGain) applyResourceDelta({ coins: opt.coinGain });
+      if (opt.foodGain) applyResourceDelta({ food: opt.foodGain });
       if (opt.hpCost && opt.hpCost < 0) applyResourceDelta({ hp: -opt.hpCost }); // マイナス=回復
       // デバフ全クリア（腐屋の貫屋：全体回復薬）
       if (opt.id === 'buy1' && node.id === 9) {
