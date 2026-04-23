@@ -678,13 +678,33 @@ function renderShop(container: HTMLElement, node: ScenarioNode): void {
           addItem('cursed_amulet');
         }
       }
+      let finalDescription = opt.description;
+
+      // 謎の箱のランダム処理（表の薬屋）
+      if (opt.id === 'buy3' && node.id === 9) {
+        const r = Math.random();
+        if (r < 0.35) {
+          finalDescription = '箱を開けると、眩い光と共に大量のコインが敷き詰められていた！\n（コインを30枚手に入れた）';
+          applyResourceDelta({ coins: 30 });
+          playSFX('reveal');
+        } else if (r < 0.7) {
+          finalDescription = '箱の底には、古いが質の良い食料パックがいくつか入っていた。\n（食料を3個手に入れた）';
+          applyResourceDelta({ food: 3 });
+          playSFX('reveal');
+        } else {
+          finalDescription = '箱を開けた瞬間、おぞましい真っ黒な瘴気が顔に満ちた！\n肺が焼け焦げるように痛む……。\n（HPを3失った）';
+          applyResourceDelta({ hp: -3 });
+          playSFX('sacrifice');
+        }
+      }
+
       addMBTIPoints(opt.mbtiDelta);
       recordAction({
         step: state.currentStep, type: 'shop', choice: opt.id,
         label: opt.label,
         resourceDelta: { hp: 0, food: 0, coins: -(opt.coinCost || 0) },
       });
-      showResult(container, node, opt.description, () => { advanceStep(); renderStep(container); });
+      showResult(container, node, finalDescription, () => { advanceStep(); renderStep(container); });
     });
   });
 
