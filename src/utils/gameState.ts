@@ -1,4 +1,4 @@
-// BOCCA ゲーム状態管理ユーティリティ（完全拡張版）
+// BOCCA ゲーム状態管理（v2 — 5軸診断モデル）
 
 import type { CustomPersona } from '../data/personas';
 
@@ -6,78 +6,100 @@ import type { CustomPersona } from '../data/personas';
 // 型定義
 // ===============================
 
-// MBTIスコアカウンター
-export interface MBTIScores {
-  E: number; // 外向
-  I: number; // 内向
-  S: number; // 感覚
-  N: number; // 直観
-  T: number; // 思考
-  F: number; // 感情
-  J: number; // 判断
-  P: number; // 知覚
+/** 5軸診断スコア（MBTIスコアを置き換え） */
+export interface DiagnosisScores {
+  rational: number;      // 合理性  (+: 論理的 / -: 感情的)
+  risk: number;          // リスク志向 (+: 冒険的 / -: 安全志向)
+  social: number;        // 協調性  (+: 他者重視 / -: 自律)
+  expectation: number;   // 期待応答 (+: 楽観的 / -: 現実主義)
+  selfpreserve: number;  // 自己保全 (+: 自己利益 / -: 自己犠牲)
 }
 
-// ゲーム内行動ログ
+/** 行動ログ */
 export interface ActionLog {
-  step: number;            // ステップ番号
-  type: 'choice' | 'battle' | 'shop' | 'event' | 'dialogue';
-  choice: string;          // 選んだ選択肢ID
-  label: string;           // 選択肢のラベル（人間が読める形）
-  sacrificedName?: string; // 犠牲にした従者のカスタム名（B選択時）
-  debuffedName?: string;   // デバフを受けた従者のカスタム名（A選択時）
-  itemUsed?: string;        // 使用したアイテムID（手動使用時）
-  itemUsedAtHp?: number;    // アイテム使用時のHP（使用タイミング診断用）
-  resourceDelta: {         // このアクションによるリソース変動
-    hp: number;
-    food: number;
-    coins: number;
-  };
+  step: number;
+  type: 'choice' | 'battle' | 'shop' | 'event' | 'dialogue' | 'emotion' | 'anchor';
+  choice: string;
+  label: string;
+  sacrificedName?: string;
+  debuffedName?: string;
+  itemUsed?: string;
+  itemUsedAtHp?: number;
+  resourceDelta: { hp: number; food: number; coins: number };
 }
 
-// ゲーム全体の状態
-export interface GameState {
-  // 従者（カスタム命名済み）
-  personas: CustomPersona[];
+/** 感情選択ログ（行動後リアクション） */
+export interface EmotionLog {
+  eventId: number;
+  eventTitle: string;
+  actionTaken: string;
+  emotionChoice: 'expected' | 'guiltyButRight' | 'regret' | 'numb';
+  diagDelta: Partial<DiagnosisScores>;
+}
 
-  // リソース
+/** バトル1ターンのログ */
+export interface BattleTurn {
+  turnNumber: number;
+  command: 'attack' | 'skill' | 'defend' | 'flee';
+  servantUsed: string | null;
+  skillId: string | null;
+  playerHpBefore: number;
+  enemyHpBefore: number;
+}
+
+/** バトル全体のログ */
+export interface BattleLog {
+  eventId: number;
+  firstCommand: 'attack' | 'skill' | 'defend' | 'flee';
+  turns: BattleTurn[];
+  outcome: 'victory' | 'defeat' | 'fled';
+  turnsCount: number;
+}
+
+/** ドラッグ操作のログ（躊躇度計測） */
+export interface DragLog {
+  eventId: number;
+  cancellations: number;
+  firstTargetName: string | null;
+  finalTargetName: string | null;
+  switched: boolean;
+  timeToDecideMs: number;
+}
+
+/** ゲーム全体の状態 */
+export interface GameState {
+  personas: CustomPersona[];
   hp: number;
   maxHp: number;
   food: number;
   coins: number;
-
-  // インベントリ（所持アイテムのIDリスト）
   inventory: string[];
-
-  // 次の選択でコスト半減フラグ（通行証の効果）
   nextChoiceCostHalved: boolean;
+  currentStep: number;
+  totalSteps: number;
+  stage: 'forest' | 'city' | 'ruins';
 
-  // 進行
-  currentStep: number;     // 現在のステップ（0始まり）
-  totalSteps: number;      // 総ステップ数
-  stage: 'forest' | 'city' | 'ruins'; // 現在のステージ
+  // 5軸診断スコア
+  diagScores: DiagnosisScores;
 
-  // 診断ポイント（等価重み付け）
-  mbti: MBTIScores;
-
-  // 行動ログ（診断の根拠）
+  // ログ
   actionLog: ActionLog[];
+  emotionLog: EmotionLog[];
+  battleLog: BattleLog[];
+  dragLog: DragLog[];
 
-  // 最初にBを選んだタイミング（Breaking Point）
+  // 追跡データ
   firstSacrificeStep: number | null;
   firstSacrificedPersonaName: string | null;
-
-  // アンカー（遺跡ステージで「動機は何か？」と聞いた時の答え）
   anchorMotivation: 'survival' | 'protect' | 'curiosity' | null;
 
-  // クリア時の最終ステータス（ゲーム終了時にスナップショット）
   finalStatus: {
     hp: number;
     food: number;
     coins: number;
-    inventory: string[];         // 残ったアイテムのIDリスト
-    survivingPersonas: string[]; // 生き残った従者のカスタム名
-    lastStandingName: string;    // 最後まで残った（or 最後に犠牲にされた）従者名
+    inventory: string[];
+    survivingPersonas: string[];
+    lastStandingName: string;
   } | null;
 }
 
@@ -92,15 +114,18 @@ export function createInitialState(): GameState {
     personas: [],
     hp: 10,
     maxHp: 10,
-    food: 20,
+    food: 15,
     coins: 30,
     inventory: [],
     nextChoiceCostHalved: false,
     currentStep: 0,
-    totalSteps: 27,
+    totalSteps: 11, // 10イベント + アンカー
     stage: 'forest',
-    mbti: { E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 },
+    diagScores: { rational: 0, risk: 0, social: 0, expectation: 0, selfpreserve: 0 },
     actionLog: [],
+    emotionLog: [],
+    battleLog: [],
+    dragLog: [],
     firstSacrificeStep: null,
     firstSacrificedPersonaName: null,
     anchorMotivation: null,
@@ -108,80 +133,65 @@ export function createInitialState(): GameState {
   };
 }
 
-export function resetGameState(): void {
-  gameState = createInitialState();
-}
+export function resetGameState(): void { gameState = createInitialState(); }
+export function getGameState(): GameState { return gameState; }
+export function setPersonas(personas: CustomPersona[]): void { gameState.personas = [...personas]; }
 
-export function getGameState(): GameState {
-  return gameState;
-}
-
-// 従者のセット
-export function setPersonas(personas: CustomPersona[]): void {
-  gameState.personas = [...personas];
-}
-
-// リソースの変動（clampあり）
+/** リソース変動（clampあり） */
 export function applyResourceDelta(delta: { hp?: number; food?: number; coins?: number }): void {
-  if (delta.hp !== undefined) {
-    gameState.hp = Math.max(0, Math.min(gameState.maxHp, gameState.hp + delta.hp));
-  }
-  if (delta.food !== undefined) {
-    gameState.food = Math.max(0, gameState.food + delta.food);
-  }
-  if (delta.coins !== undefined) {
-    gameState.coins = Math.max(0, gameState.coins + delta.coins);
-  }
+  if (delta.hp !== undefined) gameState.hp = Math.max(0, Math.min(gameState.maxHp, gameState.hp + delta.hp));
+  if (delta.food !== undefined) gameState.food = Math.max(0, gameState.food + delta.food);
+  if (delta.coins !== undefined) gameState.coins = Math.max(0, gameState.coins + delta.coins);
 }
 
-// 移動時の食料消費（1ステップ進むたびに呼ぶ）
+/** 移動時の食料消費 */
 export function consumeFoodForMove(): void {
   if (gameState.food > 0) {
     gameState.food -= 1;
   } else {
-    // 食料ゼロ → HPに大ダメージ
-    gameState.hp = Math.max(0, gameState.hp - 3);
+    gameState.hp = Math.max(0, gameState.hp - 2);
   }
 }
 
-// MBTIポイントを加算
-export function addMBTIPoints(scores: Partial<MBTIScores>): void {
-  for (const key of Object.keys(scores) as (keyof MBTIScores)[]) {
-    if (scores[key] !== undefined) {
-      gameState.mbti[key] += scores[key]!;
-    }
+/** 5軸スコアを加算 */
+export function addDiagScores(scores: Partial<DiagnosisScores>): void {
+  for (const key of Object.keys(scores) as (keyof DiagnosisScores)[]) {
+    if (scores[key] !== undefined) gameState.diagScores[key] += scores[key]!;
   }
 }
 
-// 行動ログを追加
-export function recordAction(log: ActionLog): void {
-  gameState.actionLog.push(log);
+/** 行動ログを追加 */
+export function recordAction(log: ActionLog): void { gameState.actionLog.push(log); }
+
+/** 感情選択ログを追加 */
+export function recordEmotion(log: EmotionLog): void {
+  gameState.emotionLog.push(log);
+  addDiagScores(log.diagDelta);
 }
 
-// 従者を犠牲（ロスト）処理
+/** バトルログを追加 */
+export function recordBattle(log: BattleLog): void { gameState.battleLog.push(log); }
+
+/** ドラッグログを追加 */
+export function recordDrag(log: DragLog): void { gameState.dragLog.push(log); }
+
+/** 従者を犠牲処理 */
 export function sacrificePersona(customName: string, step: number): void {
   const persona = gameState.personas.find(p => p.customName === customName);
-  if (persona) {
-    persona.isAlive = false;
-  }
-  // Breaking Pointの記録（初回のみ）
+  if (persona) persona.isAlive = false;
   if (gameState.firstSacrificeStep === null) {
     gameState.firstSacrificeStep = step;
     gameState.firstSacrificedPersonaName = customName;
   }
 }
 
-// 従者にデバフ付与
+/** 従者にデバフ付与 */
 export function applyDebuff(customName: string, debuff: string): void {
   const persona = gameState.personas.find(p => p.customName === customName);
-  if (persona) {
-    if (!persona.debuffs.includes(debuff)) {
-      persona.debuffs.push(debuff);
-    }
-  }
+  if (persona && !persona.debuffs.includes(debuff)) persona.debuffs.push(debuff);
 }
 
-// デバフを回復
+/** デバフを回復 */
 export function clearDebuffs(customNames?: string[]): void {
   if (customNames) {
     customNames.forEach(name => {
@@ -193,23 +203,22 @@ export function clearDebuffs(customNames?: string[]): void {
   }
 }
 
-// ステップ進行
+/** ステップ進行 */
 export function advanceStep(): void {
   gameState.currentStep++;
-  // ステージ遷移
-  if (gameState.currentStep >= 17) {
+  if (gameState.currentStep >= 9) {
     gameState.stage = 'ruins';
-  } else if (gameState.currentStep >= 8) {
+  } else if (gameState.currentStep >= 5) {
     gameState.stage = 'city';
   }
 }
 
-// アンカー（動機）の記録
+/** アンカー（動機）の記録 */
 export function setAnchorMotivation(motivation: 'survival' | 'protect' | 'curiosity'): void {
   gameState.anchorMotivation = motivation;
 }
 
-// ゲーム終了時のスナップショット
+/** ゲーム終了時のスナップショット */
 export function snapshotFinalStatus(): void {
   const alive = gameState.personas.filter(p => p.isAlive);
   const last = alive.length > 0 ? alive[alive.length - 1].customName : '（全員失った）';
@@ -226,35 +235,20 @@ export function snapshotFinalStatus(): void {
 // ===============================
 // インベントリ管理
 // ===============================
-
-/** アイテムをインベントリに追加 */
-export function addItem(itemId: string): void {
-  gameState.inventory.push(itemId);
-}
-
-/** アイテムをインベントリから削除（最初の1個） */
+export function addItem(itemId: string): void { gameState.inventory.push(itemId); }
 export function removeItem(itemId: string): boolean {
   const idx = gameState.inventory.indexOf(itemId);
   if (idx === -1) return false;
   gameState.inventory.splice(idx, 1);
   return true;
 }
+export function hasItem(itemId: string): boolean { return gameState.inventory.includes(itemId); }
 
-/** アイテムを所持しているか確認 */
-export function hasItem(itemId: string): boolean {
-  return gameState.inventory.includes(itemId);
-}
-
-/** 次の選択コスト半減フラグをセット（通行証の効果） */
 export function activatePassagePermit(): void {
   gameState.nextChoiceCostHalved = true;
   removeItem('passage_permit');
-  // 診断補正：J+1, S+1
-  gameState.mbti.J += 1;
-  gameState.mbti.S += 1;
+  addDiagScores({ rational: 1, selfpreserve: 1 });
 }
-
-/** コスト半減フラグを消費（choiceノードの実行時に呼ぶ） */
 export function consumeCostHalvedFlag(): boolean {
   if (!gameState.nextChoiceCostHalved) return false;
   gameState.nextChoiceCostHalved = false;
@@ -265,23 +259,14 @@ export function consumeCostHalvedFlag(): boolean {
 // シーン管理
 // ===============================
 export type Scene = 'title' | 'entrance' | 'maze' | 'finale';
-
 let currentScene: Scene = 'title';
 let sceneChangeCallback: ((scene: Scene) => void) | null = null;
 
-export function getCurrentScene(): Scene {
-  return currentScene;
-}
-
-export function setSceneChangeCallback(cb: (scene: Scene) => void): void {
-  sceneChangeCallback = cb;
-}
-
+export function getCurrentScene(): Scene { return currentScene; }
+export function setSceneChangeCallback(cb: (scene: Scene) => void): void { sceneChangeCallback = cb; }
 export function navigateTo(scene: Scene): void {
   currentScene = scene;
-  if (sceneChangeCallback) {
-    sceneChangeCallback(scene);
-  }
+  if (sceneChangeCallback) sceneChangeCallback(scene);
 }
 
 // ===============================
@@ -290,8 +275,7 @@ export function navigateTo(scene: Scene): void {
 export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
-
-export function fadeIn(element: HTMLElement, duration: number = 500): Promise<void> {
+export function fadeIn(element: HTMLElement, duration = 500): Promise<void> {
   return new Promise(resolve => {
     element.style.opacity = '0';
     element.style.transition = `opacity ${duration}ms ease`;
@@ -303,42 +287,25 @@ export function fadeIn(element: HTMLElement, duration: number = 500): Promise<vo
     });
   });
 }
-
-export function fadeOut(element: HTMLElement, duration: number = 500): Promise<void> {
+export function fadeOut(element: HTMLElement, duration = 500): Promise<void> {
   return new Promise(resolve => {
     element.style.transition = `opacity ${duration}ms ease`;
     element.style.opacity = '0';
     setTimeout(resolve, duration);
   });
 }
-
-// テキストのタイプライター効果
-export async function typewriter(
-  element: HTMLElement,
-  text: string,
-  speed: number = 50
-): Promise<void> {
+export async function typewriter(element: HTMLElement, text: string, speed = 50): Promise<void> {
   element.textContent = '';
   for (const char of text) {
     element.textContent += char;
     await sleep(speed);
   }
 }
-
-// パーティクルエフェクト生成
-export function createParticles(container: HTMLElement, count: number = 30): void {
+export function createParticles(container: HTMLElement, count = 30): void {
   for (let i = 0; i < count; i++) {
-    const particle = document.createElement('div');
-    particle.className = 'particle';
-    particle.style.cssText = `
-      left: ${Math.random() * 100}%;
-      top: ${Math.random() * 100}%;
-      width: ${Math.random() * 4 + 1}px;
-      height: ${Math.random() * 4 + 1}px;
-      animation-delay: ${Math.random() * 3}s;
-      animation-duration: ${Math.random() * 3 + 2}s;
-      background: ${Math.random() > 0.5 ? 'rgba(201, 162, 39, 0.6)' : 'rgba(139, 92, 246, 0.4)'};
-    `;
-    container.appendChild(particle);
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;width:${Math.random()*4+1}px;height:${Math.random()*4+1}px;animation-delay:${Math.random()*3}s;animation-duration:${Math.random()*3+2}s;background:${Math.random()>0.5?'rgba(201,162,39,0.6)':'rgba(139,92,246,0.4)'};`;
+    container.appendChild(p);
   }
 }

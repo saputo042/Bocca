@@ -1,7 +1,7 @@
 // BOCCA — アイテム定義データ
 // 所持・使用タイミング・効果・診断への影響を管理する
 
-import type { MBTIScores } from '../utils/gameState';
+import type { DiagnosisScores } from '../utils/gameState';
 
 // ===============================
 // 型定義
@@ -27,8 +27,8 @@ export interface ItemDefinition {
   clearDebuffs?: boolean;    // デバフ全クリア
   passiveLabel?: string;     // passive系の効果説明
   // --- 診断補正（使用した or 所持しているだけで） ---
-  diagOnUse?: Partial<MBTIScores>;    // 使用したときのMBTI補正
-  diagOnPassive?: Partial<MBTIScores>; // 所持したままfinaleに到達した場合
+  diagOnUse?: Partial<DiagnosisScores>;    // 使用したときの診断補正
+  diagOnPassive?: Partial<DiagnosisScores>; // 所持したままfinaleに到達した場合
 }
 
 // ===============================
@@ -54,7 +54,7 @@ export const ITEM_DEFINITIONS: ItemDefinition[] = [
     trigger: 'auto',
     // 次のchoiceノードで自動発動 → コスト半減 → 消費
     passiveLabel: '次の選択のコストが半減',
-    diagOnUse: { J: 1, S: 1 },
+    diagOnUse: { rational: 1 },
   },
   {
     id: 'cursed_amulet',
@@ -64,7 +64,7 @@ export const ITEM_DEFINITIONS: ItemDefinition[] = [
     trigger: 'passive',
     // 購入時にHP+3は即時処理済み（shopで）。所持するとバトルにペナルティ。
     passiveLabel: 'バトル時にHP-1の追加ペナルティ',
-    diagOnPassive: { P: 1, N: 1 },
+    diagOnPassive: { risk: 1 },
   },
   {
     id: 'ancient_relic',
@@ -73,7 +73,7 @@ export const ITEM_DEFINITIONS: ItemDefinition[] = [
     description: '失われた時代の遺物。何に使えるかは分からないが、価値があるはずだ。',
     trigger: 'passive',
     passiveLabel: '所持したままゴールすると診断スコア補正',
-    diagOnPassive: { N: 2, I: 1 },
+    diagOnPassive: { rational: 1, selfpreserve: -1 },
   },
   {
     id: 'food_pack',
