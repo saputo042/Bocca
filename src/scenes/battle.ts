@@ -6,6 +6,7 @@ import {
   getGameState,
   applyResourceDelta,
   addDiagScores,
+  applyDebuff,
   recordBattle,
   recordAction,
   sleep,
@@ -93,6 +94,7 @@ export function startBattle(
             <div class="battle-servant-grid" id="servant-grid">
               ${servantCards}
             </div>
+            <div class="skill-desc-box" id="skill-desc-box" style="display:none"></div>
             <div class="battle-command-grid" id="command-grid" style="display:none">
               <button class="btn-command cmd-attack" id="cmd-attack">⚔️ 攻撃</button>
               <button class="btn-command cmd-skill" id="cmd-skill">✨ スキル</button>
@@ -114,6 +116,13 @@ export function startBattle(
         card.classList.add('selected');
         selectedServant = card.getAttribute('data-name');
         selectedSkillId = card.getAttribute('data-skillid');
+        // スキル説明を表示
+        const vessel = selectedSkillId ? SKILL_VESSELS.find(v => v.id === selectedSkillId) : null;
+        const descBox = document.getElementById('skill-desc-box');
+        if (descBox && vessel) {
+          descBox.style.display = 'block';
+          descBox.innerHTML = `<span class="skill-desc-emoji">${vessel.battleSkill.emoji}</span> <strong>${vessel.battleSkill.name}</strong>: ${vessel.battleSkill.description}`;
+        }
         document.getElementById('command-grid')!.style.display = 'grid';
       });
     });
@@ -230,9 +239,10 @@ export function startBattle(
         }
       }
       if (skill.fleeGuaranteed) {
-        const fleeOpt = node.options.find(o => o.id === 'flee')!;
-        if (fleeOpt.foodCost) applyResourceDelta({ food: -fleeOpt.foodCost });
-        skillLog += '完璧な撤退！';
+        // transcendenceは固定食料-2コスト、他のflee系はflee選択肢のコストに準拠
+        const foodCost = useSkillId === 'transcendence' ? 2 : (node.options.find(o => o.id === 'flee')?.foodCost || 0);
+        if (foodCost) applyResourceDelta({ food: -foodCost });
+        skillLog += useSkillId === 'transcendence' ? `食料${foodCost}を消費して戦闘をスキップ！` : '完璧な撤退！';
         if (logEl) logEl.textContent = skillLog;
         await sleep(800);
         finishBattle('fled', 'flee');
@@ -313,8 +323,31 @@ export function startBattle(
         enableCommands();
         return;
       }
+      // projection（責任転嫁）: 従者1体を盾にして次の攻撃を回避 + その従者に恐怖デバフ
+      if (useSkillId === 'projection') {
+        const aliveOthers = getGameState().personas.filter(p => p.isAlive && p.customName !== servantName);
+        if (aliveOthers.length > 0) {
+          const shield = aliveOthers[Math.floor(Math.random() * aliveOthers.length)];
+          applyDebuff(shield.customName, '恐怖');
+          defenseActive = true;
+          skillLog += `「${shield.customName}」を盾にした！ 次の攻撃を完全回避（${shield.customName}に「恐怖」デバフ）`;
+        } else {
+          defenseActive = true;
+          skillLog += '防御姿勢を取った！（盾にする従者がいない）';
+        }
+        if (logEl) logEl.textContent = skillLog;
+        await sleep(900);
+        await enemyAttack(logEl);
+        turns.push(turn);
+        enableCommands();
+        return;
+      }
+
       // damageMultiplier系
-      const mult = skill.damageMultiplier || 1.0;
+      // obsession（意地）: HP1の状態では3倍ダメージの捨て身の一撃
+      const isObsession = useSkillId === 'obsession' && getGameState().hp <= 1;
+      if (isObsession) skillLog = `${servantName}の【${skill.name}】！ HP1——捨て身の絶死の一撃！ `;
+      const mult = isObsession ? 3.0 : (skill.damageMultiplier || 1.0);
       const selfDmg = skill.selfDamage || 0;
       const hitChance2 = 0.75 + nextHitBonus;
       nextHitBonus = 0;

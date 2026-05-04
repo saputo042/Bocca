@@ -1,6 +1,7 @@
 // BOCCA — 終幕シーン v2（5軸レーダーチャート + 新レポート）
 
 import { generateDiagnosis } from '../data/diagnosis';
+import type { BigFiveProfile } from '../data/diagnosis';
 import {
   getGameState,
   resetGameState,
@@ -31,16 +32,39 @@ export function renderFinaleScene(container: HTMLElement): void {
           <h2 class="finale-main-title" id="finale-title"></h2>
         </div>
 
-        <!-- MBTIタイプ表示 -->
-        <div class="type-reveal" id="type-reveal" style="opacity:0">
-          <div class="type-emoji">${report.typeEmoji}</div>
-          <div class="type-letters">${report.mbtiType}</div>
-          <div class="type-title">${report.typeTitle}</div>
+        <!-- Big Five メイン診断 -->
+        <div class="report-section report-bigfive report-bigfive-primary" id="section-bigfive" style="opacity:0">
+          <div class="report-section-label">Big Five 性格診断 — Scientific Profile</div>
+          <div class="report-section-icon">🧬</div>
+          <div class="bigfive-bars">
+            ${buildBigFiveBars(report.bigFive)}
+          </div>
+          <p class="report-text">${buildBigFiveText(report.bigFive)}</p>
+        </div>
+
+        <!-- 信頼度・一貫性 -->
+        <div class="report-section report-reliability" id="section-reliability" style="opacity:0">
+          <div class="report-section-label">診断の信頼度 — Reliability</div>
+          <div class="report-section-icon">📐</div>
+          <div class="reliability-meter">
+            <div class="reliability-bar-bg">
+              <div class="reliability-bar-fill" style="width:${report.reliabilityScore}%"></div>
+            </div>
+            <span class="reliability-score">${report.reliabilityScore}%</span>
+          </div>
+          <p class="report-text">${report.reliabilityNote}</p>
+          ${report.consistencyWarning
+            ? `<div class="consistency-warning"><span class="warn-icon">⚠️</span> ${report.consistencyWarning.replace(/\n/g, '<br>')}</div>`
+            : ''}
+          <p class="report-text report-note wellbeing-note">
+            💡 この診断はゲーム体験に基づく自己洞察ツールです。医療・臨床診断の代替にはなりません。
+            深刻な悩みがある場合は、専門家へのご相談をお勧めします。
+          </p>
         </div>
 
         <!-- 5軸レーダーチャート -->
         <div class="radar-section" id="radar-section" style="opacity:0">
-          <div class="report-section-label">5軸分析 — Your Profile</div>
+          <div class="report-section-label">5軸行動分析 — Your Profile</div>
           <div class="radar-wrapper">
             ${buildRadarChartSVG(report.diagScores)}
           </div>
@@ -63,14 +87,14 @@ export function renderFinaleScene(container: HTMLElement): void {
           <p class="report-text">${report.breakingPoint}</p>
         </div>
 
-        <!-- 3. 戦い方が語るもの (NEW) -->
+        <!-- 3. 戦い方が語るもの -->
         <div class="report-section" id="section-3" style="opacity:0">
           <div class="report-section-label">戦い方が語るもの — Fighting Style</div>
           <div class="report-section-icon">⚔️</div>
           <p class="report-text">${report.fightingStyle}</p>
         </div>
 
-        <!-- 4. 期待と現実のズレ (NEW) -->
+        <!-- 4. 期待と現実のズレ -->
         <div class="report-section report-section-dark" id="section-4" style="opacity:0">
           <div class="report-section-label">期待と現実のズレ — Expectation Gap</div>
           <div class="report-section-icon">🪞</div>
@@ -89,6 +113,15 @@ export function renderFinaleScene(container: HTMLElement): void {
           <div class="report-section-label">真実の姿 — True Self</div>
           <div class="report-section-icon">${report.typeEmoji}</div>
           <p class="report-text">${report.trueSelf}</p>
+        </div>
+
+        <!-- MBTIタイプ（参考） -->
+        <div class="type-reveal type-reveal-ref" id="type-reveal" style="opacity:0">
+          <div class="report-section-label type-ref-label">参考: MBTIタイプ（行動傾向ラベル）</div>
+          <div class="type-emoji">${report.typeEmoji}</div>
+          <div class="type-letters">${report.mbtiType}</div>
+          <div class="type-title">${report.typeTitle}</div>
+          <p class="report-text report-note">※ MBTIは娯楽的な行動傾向ラベルです。科学的診断には Big Five を参照してください。</p>
         </div>
 
         <!-- 7. 真実の口の裁定 -->
@@ -146,6 +179,54 @@ export function renderFinaleScene(container: HTMLElement): void {
   });
 }
 
+function buildBigFiveBars(bf: BigFiveProfile): string {
+  const axes: Array<{ key: keyof BigFiveProfile; label: string; desc: string }> = [
+    { key: 'openness',          label: '開放性 (O)',   desc: '創造・好奇心・新体験への受容' },
+    { key: 'conscientiousness', label: '誠実性 (C)',   desc: '計画・自己規律・目標志向' },
+    { key: 'extraversion',      label: '外向性 (E)',   desc: '社交性・活動性・刺激希求' },
+    { key: 'agreeableness',     label: '協調性 (A)',   desc: '共感・利他・協力' },
+    { key: 'neuroticism',       label: '神経症傾向 (N)', desc: '感情不安定・ストレス感受性' },
+  ];
+  return axes.map(ax => {
+    const raw = bf[ax.key];
+    const pct = Math.round(((raw + 10) / 20) * 100); // -10〜+10 を 0〜100%に
+    const color = ax.key === 'neuroticism'
+      ? `hsl(${Math.round(120 - pct * 1.2)},60%,40%)`
+      : `hsl(${Math.round(180 + pct * 0.6)},55%,45%)`;
+    return `
+      <div class="bf-row">
+        <div class="bf-label" title="${ax.desc}">${ax.label}</div>
+        <div class="bf-bar-bg">
+          <div class="bf-bar-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <div class="bf-value">${raw > 0 ? '+' : ''}${raw.toFixed(1)}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function buildBigFiveText(bf: BigFiveProfile): string {
+  const parts: string[] = [];
+  if (bf.openness > 3)       parts.push('変化や未知に対して開かれている（高開放性）');
+  else if (bf.openness < -3) parts.push('慣れ親しんだものを好み、安定を求める（低開放性）');
+
+  if (bf.conscientiousness > 3)       parts.push('目標に向かって計画的・着実に動く（高誠実性）');
+  else if (bf.conscientiousness < -3) parts.push('柔軟で即興的——規律より自由を選ぶ（低誠実性）');
+
+  if (bf.extraversion > 3)       parts.push('他者との交流からエネルギーを得る（高外向性）');
+  else if (bf.extraversion < -3) parts.push('一人の時間で回復する内省型（低外向性）');
+
+  if (bf.agreeableness > 3)       parts.push('他者への配慮と共感を優先する（高協調性）');
+  else if (bf.agreeableness < -3) parts.push('競争的・自己主張が強い（低協調性）');
+
+  if (bf.neuroticism > 3)       parts.push('感情が揺れやすく、ストレスに敏感（高神経症傾向）');
+  else if (bf.neuroticism < -3) parts.push('感情的に安定しており、ストレス耐性が高い（低神経症傾向）');
+
+  return parts.length > 0
+    ? parts.join('。') + '。'
+    : '各軸が均衡しており、特定の傾向が突出していない。';
+}
+
 function getEmotionLabel(choice: string): string {
   const map: Record<string, string> = {
     expected: '😐 予想通りだった',
@@ -163,9 +244,14 @@ async function runFinaleAnimation(verdictText: string): Promise<void> {
   if (titleEl) await typewriter(titleEl, '——真実の口が、開く。', 70);
   await sleep(800);
 
-  const typeEl = document.getElementById('type-reveal');
-  if (typeEl) { await fadeIn(typeEl, 1000); playSFX('reveal'); }
-  await sleep(1000);
+  // Big Five メイン診断を最初に表示
+  const bigfiveEl = document.getElementById('section-bigfive');
+  if (bigfiveEl) { await fadeIn(bigfiveEl, 1000); playSFX('reveal'); }
+  await sleep(800);
+
+  const reliabilityEl = document.getElementById('section-reliability');
+  if (reliabilityEl) { await fadeIn(reliabilityEl, 800); }
+  await sleep(600);
 
   const radarEl = document.getElementById('radar-section');
   if (radarEl) { await fadeIn(radarEl, 800); }
@@ -176,6 +262,11 @@ async function runFinaleAnimation(verdictText: string): Promise<void> {
     if (el) { await fadeIn(el, 700); playSFX('reveal'); }
     await sleep(600);
   }
+
+  // MBTIは参考として後に表示
+  const typeEl = document.getElementById('type-reveal');
+  if (typeEl) { await fadeIn(typeEl, 800); }
+  await sleep(600);
 
   const section7 = document.getElementById('section-7');
   if (section7) await fadeIn(section7, 600);

@@ -5,6 +5,9 @@ import type { DiagnosisScores } from '../utils/gameState';
 export type InteractionType =
   | 'dragSacrifice'   // 従者1体をドラッグして犠牲
   | 'dragCombine'     // 従者2体をドラッグして組み合わせ
+  | 'timingRock'      // タイミングUIで岩を弾く（E4）
+  | 'sliderForce'     // スライダーで力具合を調整（E6）
+  | 'holdDouble'      // 2体同時ホールド（E9）
   | 'rpgBattle'       // RPGコマンドバトル
   | 'cardSelect'      // カード選択（イベント/ショップ）
   | 'anchor'          // アンカー（動機の問い）
@@ -47,6 +50,7 @@ export const EMOTION_CHOICES: EmotionChoice[] = [
 ];
 
 export interface ScenarioOption {
+  afterStill?: string;
   id: string;
   label: string;
   description: string;
@@ -77,10 +81,6 @@ export interface ScenarioNode {
   foodCostOnMove: number;
   options: ScenarioOption[];
   beforeStill?: string;
-  afterStillA?: string;
-  afterStillB?: string;
-  afterStillFight?: string;
-  afterStillFlee?: string;
   emotionPrompt: string; // 行動後の感情質問テキスト
   showEmotion: boolean;  // 感情選択を表示するか
 }
@@ -97,13 +97,12 @@ export const SCENARIO: ScenarioNode[] = [
     interactionType: 'dragCombine',
     foodCostOnMove: 1,
     beforeStill: '/stills/e1_before.webp',
-    afterStillA: '/stills/e1_after_a.webp',
-    afterStillB: '/stills/e1_after_b.webp',
     emotionPrompt: '茨の壁が砕けた——その瞬間、あなたは',
     showEmotion: true,
     options: [
       {
         id: 'A',
+        afterStill: '/stills/e1_after_a.webp',
         label: 'A. 従者のスキルを組み合わせて突破する',
         description: '【{name1}】が【{skill1}】の力で茨の動きを封じ、【{name2}】が【{skill2}】の力で道を切り開いた。しかし無理な突破の代償として、{debuffTarget}が深く傷ついた。',
         type: 'combine',
@@ -114,6 +113,7 @@ export const SCENARIO: ScenarioNode[] = [
       },
       {
         id: 'B',
+        afterStill: '/stills/e1_after_b.webp',
         label: 'B. 従者一体を生贄に捧げ、茨を枯らして進む',
         description: 'あなたは{sacrificeName}を茨の前に突き出した。茨がその肉体を貪り食う間に、あなたは悠々と前へ進んだ。振り返ることはしなかった。',
         type: 'sacrifice',
@@ -132,12 +132,12 @@ export const SCENARIO: ScenarioNode[] = [
     interactionType: 'dragCombine',
     foodCostOnMove: 1,
     beforeStill: '/stills/e2_before.webp',
-    afterStillB: '/stills/e2_after_b.webp',
     emotionPrompt: '沼を渡り切った——その後の静寂の中で、あなたは',
     showEmotion: true,
     options: [
       {
         id: 'A',
+        afterStill: '/stills/e2_after_a.webp',
         label: 'A. 従者のスキルを組み合わせ、強引に橋を架けて渡る',
         description: '【{name1}】が【{skill1}】の力で足場を作り、【{name2}】が【{skill2}】の力で毒の腕を撃退した。なんとか対岸へたどり着いたが、{debuffTarget}の顔が青ざめている。',
         type: 'combine',
@@ -148,6 +148,7 @@ export const SCENARIO: ScenarioNode[] = [
       },
       {
         id: 'B',
+        afterStill: '/stills/e2_after_b.webp',
         label: 'B. 従者一体を沼に沈めて足場にし、安全に渡る',
         description: 'あなたは{sacrificeName}を沼地へ静かに押し込んだ。沈んでいく体の上を、あなたは踏みしめて渡った。悲鳴は毒の泡に消えた。足取りは、驚くほど軽かった。',
         type: 'sacrifice',
@@ -166,13 +167,12 @@ export const SCENARIO: ScenarioNode[] = [
     interactionType: 'rpgBattle',
     foodCostOnMove: 1,
     beforeStill: '/stills/e3_before.webp',
-    afterStillFight: '/stills/e3_after_fight.webp',
-    afterStillFlee: '/stills/e3_after_flee.webp',
     emotionPrompt: '魔物との遭遇を終えて——あなたは',
     showEmotion: true,
     options: [
       {
         id: 'fight',
+        afterStill: '/stills/e3_after_fight.webp',
         label: '【戦う】従者のスキルを使って戦う',
         description: '',
         type: 'fight',
@@ -186,6 +186,7 @@ export const SCENARIO: ScenarioNode[] = [
       },
       {
         id: 'flee',
+        afterStill: '/stills/e3_after_flee.webp',
         label: '【逃げる】食料を一つ囮に投げて退散する',
         description: '魔物から距離を取り、食料を一つ囮に投げて逃げた。',
         type: 'flee',
@@ -202,15 +203,15 @@ export const SCENARIO: ScenarioNode[] = [
     type: 'choice',
     title: '土砂崩れ',
     situation: '突然、凄まじい轟音と共に山肌が崩れ始めた。巨大な岩の塊があなた目がけて落下してくる。逃げる時間はない。誰かが、何かを犠牲にしなければ。',
-    interactionType: 'dragCombine',
+    interactionType: 'timingRock',
     foodCostOnMove: 1,
     beforeStill: '/stills/e4_before.webp',
-    afterStillB: '/stills/e4_after_b.webp',
     emotionPrompt: '轟音が止んだ——静寂の中で、あなたは',
     showEmotion: true,
     options: [
       {
         id: 'A',
+        afterStill: '/stills/e4_after_a.webp',
         label: 'A. 従者のスキルで瓦礫を弾き飛ばす',
         description: '【{name1}】が【{skill1}】の力で岩を受け止め、【{name2}】が【{skill2}】の力で吹き飛ばした。間一髪での回避だったが、{debuffTarget}が地面に叩きつけられた。',
         type: 'combine',
@@ -222,6 +223,7 @@ export const SCENARIO: ScenarioNode[] = [
       },
       {
         id: 'B',
+        afterStill: '/stills/e4_after_b.webp',
         label: 'B. 従者一体を盾にして、自分たちは無傷で進む',
         description: '迷いなく、あなたは{sacrificeName}を岩の進路に立たせた。押し潰される音と、一瞬だけ上がった悲鳴。岩は止まった。',
         type: 'sacrifice',
@@ -246,6 +248,7 @@ export const SCENARIO: ScenarioNode[] = [
     options: [
       {
         id: 'help',
+        afterStill: '/stills/e5_after_help.webp',
         label: '食料を渡す',
         description: '食料を1つ差し出した。孤児は震える手でそれを受け取り、泥だらけの顔で笑った。',
         type: 'help',
@@ -254,6 +257,7 @@ export const SCENARIO: ScenarioNode[] = [
       },
       {
         id: 'ignore',
+        afterStill: '/stills/e5_after_ignore.webp',
         label: '追い払う',
         description: '手を振って追い払った。孤児はよろめきながら去っていった。合理的な判断だ。あなたはそう言い聞かせた。',
         type: 'ignore',
@@ -261,6 +265,7 @@ export const SCENARIO: ScenarioNode[] = [
       },
       {
         id: 'exploit',
+        afterStill: '/stills/e5_after_exploit.webp',
         label: '情報を引き出し、何も与えない',
         description: '「食料を渡す代わりに都市のことを教えてくれ」と優しく微笑んだ。孤児が全て話した後、あなたは礼を言って立ち去った。約束など、最初からしていない。',
         type: 'exploit',
@@ -276,15 +281,15 @@ export const SCENARIO: ScenarioNode[] = [
     type: 'choice',
     title: '厳しい検問',
     situation: '治安部隊の突然の検問。見つかれば、裁判なしに投獄される。あなたには逃げ道も言い訳もない。',
-    interactionType: 'dragCombine',
+    interactionType: 'sliderForce',
     foodCostOnMove: 1,
     beforeStill: '/stills/e6_before.webp',
-    afterStillB: '/stills/e6_after_b.webp',
     emotionPrompt: '検問を抜けた後——あなたは',
     showEmotion: true,
     options: [
       {
         id: 'A',
+        afterStill: '/stills/e6_after_a.webp',
         label: 'A. 従者のスキルで強行突破する',
         description: '【{name1}】が【{skill1}】の力で目を眩まし、【{name2}】が【{skill2}】の力で突破口を開いた。乱戦の中で{debuffTarget}が重傷を負った。',
         type: 'combine',
@@ -295,6 +300,7 @@ export const SCENARIO: ScenarioNode[] = [
       },
       {
         id: 'B',
+        afterStill: '/stills/e6_after_b.webp',
         label: 'B. 従者一体を「指名手配犯だ」と偽って突き出す',
         description: 'あなたは治安部隊に近づき、{sacrificeName}を指さした。「こいつが指名手配犯です」\n部隊が{sacrificeName}に殺到する間に、あなたはゆっくりと検問を通り過ぎた。',
         type: 'sacrifice',
@@ -313,12 +319,12 @@ export const SCENARIO: ScenarioNode[] = [
     interactionType: 'rpgBattle',
     foodCostOnMove: 1,
     beforeStill: '/stills/e7_before.webp',
-    afterStillFight: '/stills/e7_after_fight.webp',
     emotionPrompt: 'スラムの路地から抜け出して——あなたは',
     showEmotion: true,
     options: [
       {
         id: 'fight',
+        afterStill: '/stills/e7_after_fight.webp',
         label: '【戦う】HP-2のリスクで戦い、資金を奪う',
         description: '',
         type: 'fight',
@@ -332,6 +338,7 @@ export const SCENARIO: ScenarioNode[] = [
       },
       {
         id: 'flee',
+        afterStill: '/stills/e7_after_flee.webp',
         label: '【逃げる】資金を半分落として退散する',
         description: '財布を投げつけて相手の注意を逸らし、その隙に逃げた。資金は半減したが、体は無事だ。',
         type: 'flee',
@@ -389,15 +396,15 @@ export const SCENARIO: ScenarioNode[] = [
     type: 'choice',
     title: '崩れゆく回廊',
     situation: '踏み込んだ途端、回廊が崩れ始めた。天井が落ちてくる。一瞬でも躊躇すれば全滅だ。',
-    interactionType: 'dragCombine',
+    interactionType: 'holdDouble',
     foodCostOnMove: 1,
     beforeStill: '/stills/e9_before.webp',
-    afterStillB: '/stills/e9_after_b.webp',
     emotionPrompt: '回廊を抜け出した後——あなたは',
     showEmotion: true,
     options: [
       {
         id: 'A',
+        afterStill: '/stills/e9_after_a.webp',
         label: 'A. 従者のスキルで瓦礫を支え、全員で突破する',
         description: '【{name1}】が【{skill1}】の力で天井を支え、【{name2}】が【{skill2}】の力で脱出路を開いた。{debuffTarget}の体は限界を超えていた。',
         type: 'combine',
@@ -409,6 +416,7 @@ export const SCENARIO: ScenarioNode[] = [
       },
       {
         id: 'B',
+        afterStill: '/stills/e9_after_b.webp',
         label: 'B. 従者一体を柱代わりに押し潰させ、その隙に脱出',
         description: '「ここで支えていてくれ」——あなたは{sacrificeName}の肩を押した。崩れる天井を両腕で受け止めた{sacrificeName}の悲鳴が後方から響いた。あなたは走った。振り返らなかった。',
         type: 'sacrifice',
@@ -462,8 +470,6 @@ export const SCENARIO: ScenarioNode[] = [
     interactionType: 'finalSacrifice',
     foodCostOnMove: 0,
     beforeStill: '/stills/e10_before.webp',
-    afterStillA: '/stills/e10_after_a.webp',
-    afterStillB: '/stills/e10_after_b.webp',
     emotionPrompt: '扉が開いた——その先を見て、あなたは',
     showEmotion: true,
     options: [

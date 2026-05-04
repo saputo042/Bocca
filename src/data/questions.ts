@@ -199,4 +199,116 @@ export const QUESTIONS: Question[] = [
       },
     ],
   },
+
+  // === Phase A: BIS/BAS 検証尺度（Carver & White 1994 準拠）===
+  // BIS（行動抑制系）— 不安・罰への感受性
+  {
+    id: 6,
+    text: '悪いことが起きそうだと感じると\nどうなる？',
+    subText: '直感的に最も近いものを選べ。',
+    options: [
+      {
+        id: 'a',
+        label: 'かなり不安になる・心が乱れる',
+        subLabel: '悪い予感が頭を占領し、なかなか離れない',
+        vesselScores: {},
+        diagDelta: { expectation: 2, selfpreserve: -1 },
+      },
+      {
+        id: 'b',
+        label: '少し気になるが、何とかなると思う',
+        subLabel: '気にはなるが、行動に大きく影響はしない',
+        vesselScores: {},
+        diagDelta: { expectation: 1 },
+      },
+      {
+        id: 'c',
+        label: 'できる準備を淡々と進める',
+        subLabel: '感情より対策を優先する。不安は後回し',
+        vesselScores: {},
+        diagDelta: { rational: 1, expectation: -1 },
+      },
+      {
+        id: 'd',
+        label: 'あまり気にならない・予感を無視する',
+        subLabel: '先のことを考えすぎても仕方ない',
+        vesselScores: {},
+        diagDelta: { expectation: -2, risk: 1 },
+      },
+    ],
+  },
+
+  // BIS — 批判・失敗への過敏性
+  {
+    id: 7,
+    text: '誰かに批判・失望された後\nあなたは——',
+    subText: '（たとえ些細なことでも）',
+    options: [
+      {
+        id: 'a',
+        label: 'しばらく頭から離れない・繰り返し考える',
+        subLabel: 'あの言葉の意味を、何度も反芻する',
+        vesselScores: {},
+        diagDelta: { expectation: 2, rational: -1 },
+      },
+      {
+        id: 'b',
+        label: '少し落ち込むが、次へ切り替えられる',
+        subLabel: '傷はある。でも長くは引きずらない',
+        vesselScores: {},
+        diagDelta: { expectation: 1 },
+      },
+      {
+        id: 'c',
+        label: '自分の行動を冷静に検証する',
+        subLabel: '感情的にならず、改善点を整理する',
+        vesselScores: {},
+        diagDelta: { rational: 2, expectation: -1 },
+      },
+      {
+        id: 'd',
+        label: 'あまり気にしない・割り切れる',
+        subLabel: '他者の評価に左右されない自分がいる',
+        vesselScores: {},
+        diagDelta: { selfpreserve: 2, expectation: -2 },
+      },
+    ],
+  },
+
+  // BAS（行動活性化系）— 報酬・達成への衝動
+  {
+    id: 8,
+    text: '欲しいもの・やりたいことがあるとき\nあなたはどう動く？',
+    subText: '本能的な行動パターンに近いものを選べ。',
+    options: [
+      {
+        id: 'a',
+        label: 'すぐに全力で動く・障害があっても突き進む',
+        subLabel: 'チャンスは逃さない。躊躇は損失だ',
+        vesselScores: {},
+        diagDelta: { risk: 2, rational: -1 },
+      },
+      {
+        id: 'b',
+        label: '興奮するが、少し計画してから動く',
+        subLabel: '熱意はある。でも準備も怠らない',
+        vesselScores: {},
+        diagDelta: { risk: 1, rational: 1 },
+      },
+      {
+        id: 'c',
+        label: '慎重に見極めてから、確実な方法を取る',
+        subLabel: 'リスクを最小化したうえで動く',
+        vesselScores: {},
+        diagDelta: { risk: -1, rational: 2 },
+      },
+      {
+        id: 'd',
+        label: '機会があれば動く・なければ待つ',
+        subLabel: '強く求める衝動はあまりない',
+        vesselScores: {},
+        diagDelta: { risk: -2, selfpreserve: 1 },
+      },
+    ],
+  },
 ];

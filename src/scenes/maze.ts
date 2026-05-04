@@ -26,7 +26,7 @@ import {
 import { renderEmotionPicker } from '../components/EmotionPicker';
 import { buildProgressBar, buildProgressSteps } from '../components/ProgressBar';
 import { startBattle } from './battle';
-import { startDragSacrifice, startDragCombine } from './interaction';
+import { startDragSacrifice, startDragCombine, startTimingRock, startSliderForce, startHoldDouble } from './interaction';
 import { playAmbienceForScene } from '../utils/audio';
 
 export function renderMazeScene(container: HTMLElement): void {
@@ -169,8 +169,14 @@ async function showResult(
 function renderChoice(container: HTMLElement, node: ScenarioNode): void {
   const optA = node.options.find(o => o.id === 'A')!;
   const optB = node.options.find(o => o.id === 'B')!;
+  let choiceStartTime = Date.now();
 
   function renderMain(): void {
+    choiceStartTime = Date.now();
+    const aLabel = node.interactionType === 'timingRock' ? 'タイミングで岩を弾く'
+      : node.interactionType === 'sliderForce' ? '力加減を調整して突破する'
+      : node.interactionType === 'holdDouble' ? '2体で支えて突破する'
+      : '従者を2体選んで実行';
     container.innerHTML = `
       ${buildHUD(node)}
       <div class="scene scene-${node.stage}" id="scene-main">
@@ -189,7 +195,7 @@ function renderChoice(container: HTMLElement, node: ScenarioNode): void {
                 ${optA.foodCost ? `<span class="cost-item cost-bad">🍞 -${optA.foodCost}</span>` : ''}
                 <span class="cost-item cost-warn">⚠️ 1体デバフ（${optA.debuffType || ''}）</span>
               </div>
-              <button class="btn-choice btn-a" id="btn-a">従者を2体選んで実行</button>
+              <button class="btn-choice btn-a" id="btn-a">${aLabel}</button>
             </div>
             <div class="choice-divider">OR</div>
             <div class="choice-card choice-b">
@@ -213,10 +219,27 @@ function renderChoice(container: HTMLElement, node: ScenarioNode): void {
   }
 
   function launchCombine(): void {
-    startDragCombine(container, node, optA,
-      (p1Name, p2Name) => executeA(p1Name, p2Name),
-      () => launchSacrifice()
-    );
+    if (node.interactionType === 'timingRock') {
+      startTimingRock(container, node, optA, optB,
+        (p1Name, p2Name) => executeA(p1Name, p2Name),
+        () => launchSacrifice()
+      );
+    } else if (node.interactionType === 'sliderForce') {
+      startSliderForce(container, node, optA, optB,
+        (p1Name, p2Name, sliderVal) => executeA(p1Name, p2Name, sliderVal),
+        () => launchSacrifice()
+      );
+    } else if (node.interactionType === 'holdDouble') {
+      startHoldDouble(container, node, optA, optB,
+        (p1Name, p2Name) => executeA(p1Name, p2Name),
+        () => launchSacrifice()
+      );
+    } else {
+      startDragCombine(container, node, optA,
+        (p1Name, p2Name) => executeA(p1Name, p2Name),
+        () => launchSacrifice()
+      );
+    }
   }
 
   function launchSacrifice(): void {
@@ -224,7 +247,7 @@ function renderChoice(container: HTMLElement, node: ScenarioNode): void {
     container.addEventListener('drag-cancelled', () => renderMain(), { once: true });
   }
 
-  function executeA(p1Name: string, p2Name: string): void {
+  function executeA(p1Name: string, p2Name: string, sliderVal?: number): void {
     const state = getGameState();
     const aliveNow = state.personas.filter(p => p.isAlive);
     const debuffTarget = aliveNow.find(p => p.customName !== p1Name && p.customName !== p2Name);
@@ -243,23 +266,31 @@ function renderChoice(container: HTMLElement, node: ScenarioNode): void {
     const s1 = SKILL_VESSELS.find(v => v.id === p1?.skillId)?.name || '';
     const s2 = SKILL_VESSELS.find(v => v.id === p2?.skillId)?.name || '';
 
-    const resultText = (halved ? '【通行証発動：コスト半減】\n' : '') +
+    // スライダー値による追加テキスト
+    let sliderNote = '';
+    if (sliderVal !== undefined) {
+      if (sliderVal < 33) sliderNote = '【慎重な突破：損耗を最小限に抑えた】\n';
+      else if (sliderVal < 67) sliderNote = '【最適な力加減：完璧な突破だった】\n';
+      else sliderNote = '【過剰な力：乱戦になったが突破した】\n';
+    }
+
+    const resultText = sliderNote + (halved ? '【通行証発動：コスト半減】\n' : '') +
       optA.description
         .replace('{name1}', p1Name).replace('{name2}', p2Name)
         .replace('{skill1}', s1).replace('{skill2}', s2)
         .replace(/{debuffTarget}/g, debuffTargetName);
 
-    recordAction({ step: state.currentStep, type: 'choice', choice: 'A', label: optA.label, debuffedName: debuffTargetName, resourceDelta: { hp: -hpCost, food: -foodCost, coins: 0 } });
+    recordAction({ step: state.currentStep, type: 'choice', choice: 'A', label: optA.label, debuffedName: debuffTargetName, responseTimeMs: Date.now() - choiceStartTime, resourceDelta: { hp: -hpCost, food: -foodCost, coins: 0 } });
 
-    showResult(container, node, resultText, node.afterStillA, () => { advanceStep(); renderStep(container); });
+    showResult(container, node, resultText, optA.afterStill, () => { advanceStep(); renderStep(container); });
   }
 
   function executeB(sacrificedName: string): void {
     sacrificePersona(sacrificedName, getGameState().currentStep);
     addDiagScores(optB.diagDelta);
     const resultText = optB.description.replace(/{sacrificeName}/g, sacrificedName);
-    recordAction({ step: getGameState().currentStep, type: 'choice', choice: 'B', label: optB.label, sacrificedName, resourceDelta: { hp: 0, food: 0, coins: 0 } });
-    showResult(container, node, resultText, node.afterStillB, () => { advanceStep(); renderStep(container); });
+    recordAction({ step: getGameState().currentStep, type: 'choice', choice: 'B', label: optB.label, sacrificedName, responseTimeMs: Date.now() - choiceStartTime, resourceDelta: { hp: 0, food: 0, coins: 0 } });
+    showResult(container, node, resultText, optB.afterStill, () => { advanceStep(); renderStep(container); });
   }
 
   renderMain();
@@ -278,9 +309,9 @@ function renderBattleNode(container: HTMLElement, node: ScenarioNode): void {
     await sleep(1500);
 
     startBattle(container, node, (outcome, _actionId) => {
-      const afterStill = outcome === 'fled' ? node.afterStillFlee : node.afterStillFight;
+      const _opt = node.options.find(o => o.id === _actionId)!;
       const text = outcome === 'victory' ? (node.options.find(o=>o.id==='fight')?.successText || '戦いに勝利した。') : outcome === 'fled' ? (node.options.find(o=>o.id==='flee')?.description || '逃げ切った。') : (node.options.find(o=>o.id==='fight')?.failureText || '敗北した。');
-      showResult(container, node, text, afterStill, () => { advanceStep(); renderStep(container); });
+      showResult(container, node, text, _opt.afterStill, () => { advanceStep(); renderStep(container); });
     });
   })();
 }
@@ -290,6 +321,7 @@ function renderBattleNode(container: HTMLElement, node: ScenarioNode): void {
 // ===============================
 function renderEvent(container: HTMLElement, node: ScenarioNode): void {
   const state = getGameState();
+  const eventStartTime = Date.now();
 
   container.innerHTML = `
     ${buildHUD(node)}
@@ -313,8 +345,8 @@ function renderEvent(container: HTMLElement, node: ScenarioNode): void {
       if (opt.foodCost) applyResourceDelta({ food: -opt.foodCost });
       if (opt.coinGain) applyResourceDelta({ coins: opt.coinGain });
       addDiagScores(opt.diagDelta);
-      recordAction({ step: state.currentStep, type: 'event', choice: opt.id, label: opt.label, resourceDelta: { hp: -(opt.hpCost||0), food: -(opt.foodCost||0), coins: opt.coinGain||0 } });
-      showResult(container, node, opt.description, undefined, () => { advanceStep(); renderStep(container); });
+      recordAction({ step: state.currentStep, type: 'event', choice: opt.id, label: opt.label, responseTimeMs: Date.now() - eventStartTime, resourceDelta: { hp: -(opt.hpCost||0), food: -(opt.foodCost||0), coins: opt.coinGain||0 } });
+      showResult(container, node, opt.description, opt.afterStill, () => { advanceStep(); renderStep(container); });
     });
   });
 }
@@ -358,7 +390,7 @@ function renderShop(container: HTMLElement, node: ScenarioNode): void {
       if (opt.itemGain) addItem(opt.itemGain);
       addDiagScores(opt.diagDelta);
       recordAction({ step: state.currentStep, type: 'shop', choice: opt.id, label: opt.label, resourceDelta: { hp: 0, food: 0, coins: -(opt.coinCost||0) } });
-      showResult(container, node, opt.description, undefined, () => { advanceStep(); renderStep(container); });
+      showResult(container, node, opt.description, opt.afterStill, () => { advanceStep(); renderStep(container); });
     });
   });
 
@@ -375,6 +407,7 @@ function renderShop(container: HTMLElement, node: ScenarioNode): void {
 // アンカーノード
 // ===============================
 function renderAnchor(container: HTMLElement, node: ScenarioNode): void {
+  const anchorStartTime = Date.now();
   container.innerHTML = `
     ${buildHUD(node)}
     <div class="scene scene-ruins" id="anchor-scene">
@@ -403,8 +436,8 @@ function renderAnchor(container: HTMLElement, node: ScenarioNode): void {
     document.getElementById(`anchor-${opt.id}`)?.addEventListener('click', () => {
       setAnchorMotivation(opt.id as any);
       addDiagScores(opt.diagDelta);
-      recordAction({ step: getGameState().currentStep, type: 'anchor', choice: opt.id, label: opt.label, resourceDelta: { hp: 0, food: 0, coins: 0 } });
-      showResult(container, node, opt.description, undefined, () => { advanceStep(); renderStep(container); });
+      recordAction({ step: getGameState().currentStep, type: 'anchor', choice: opt.id, label: opt.label, responseTimeMs: Date.now() - anchorStartTime, resourceDelta: { hp: 0, food: 0, coins: 0 } });
+      showResult(container, node, opt.description, opt.afterStill, () => { advanceStep(); renderStep(container); });
     });
   });
 }
@@ -442,9 +475,10 @@ function renderFinalSacrifice(container: HTMLElement, node: ScenarioNode): void 
             <div class="final-servants">
               ${alive.map(p => {
                 const vessel = SKILL_VESSELS.find(v => v.id === p.skillId);
-                return `<div class="final-servant-drag" id="fsd-${p.customName}" data-name="${p.customName}" draggable="true">${vessel?.symbol || '?'} ${p.customName}</div>`;
+                return `<div class="final-servant-card" data-name="${p.customName}">${vessel?.symbol || '?'} ${p.customName}</div>`;
               }).join('')}
             </div>
+            <button class="btn-choice btn-b" id="btn-final-b">B. 従者をBOCCAに捧げる</button>
           </div>
         </div>
       </div>
@@ -460,17 +494,20 @@ function renderFinalSacrifice(container: HTMLElement, node: ScenarioNode): void 
     addDiagScores(optA.diagDelta);
     recordAction({ step: state.currentStep, type: 'choice', choice: 'A', label: optA.label, resourceDelta: { hp: -(optA.hpCost||9), food: 0, coins: 0 } });
     snapshotFinalStatus();
-    showResult(container, node, optA.description, node.afterStillA, () => finishGame(container));
+    showResult(container, node, optA.description, optA.afterStill, () => finishGame(container));
   });
 
-  // B選択（ドラッグ）
-  startDragSacrifice(container, { ...node, interactionType: 'dragSacrifice' }, optB, (sacrificedName) => {
-    sacrificePersona(sacrificedName, state.currentStep);
-    addDiagScores(optB.diagDelta);
-    const text = optB.description.replace(/{sacrificeName}/g, sacrificedName);
-    recordAction({ step: state.currentStep, type: 'choice', choice: 'B', label: optB.label, sacrificedName, resourceDelta: { hp: 0, food: 0, coins: 0 } });
-    snapshotFinalStatus();
-    showResult(container, node, text, node.afterStillB, () => finishGame(container));
+  // B選択（ボタン → ドラッグ画面へ遷移）
+  document.getElementById('btn-final-b')?.addEventListener('click', () => {
+    startDragSacrifice(container, { ...node, interactionType: 'dragSacrifice' }, optB, (sacrificedName) => {
+      sacrificePersona(sacrificedName, state.currentStep);
+      addDiagScores(optB.diagDelta);
+      const text = optB.description.replace(/{sacrificeName}/g, sacrificedName);
+      recordAction({ step: state.currentStep, type: 'choice', choice: 'B', label: optB.label, sacrificedName, resourceDelta: { hp: 0, food: 0, coins: 0 } });
+      snapshotFinalStatus();
+      showResult(container, node, text, optB.afterStill, () => finishGame(container));
+    });
+    container.addEventListener('drag-cancelled', () => renderFinalSacrifice(container, node), { once: true });
   });
 }
 

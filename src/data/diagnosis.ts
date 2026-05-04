@@ -6,18 +6,30 @@ import type { GameState, DiagnosisScores } from '../utils/gameState';
 // 型定義
 // ===============================
 
+export interface BigFiveProfile {
+  openness: number;           // 開放性  (-10〜+10)
+  conscientiousness: number;  // 誠実性
+  extraversion: number;       // 外向性
+  agreeableness: number;      // 協調性
+  neuroticism: number;        // 神経症傾向
+}
+
 export interface DiagnosisReport {
   mbtiType: string;
   typeTitle: string;
   typeEmoji: string;
   idealSelf: string;
   breakingPoint: string;
-  fightingStyle: string;     // NEW: バトルスタイル分析
-  expectationGap: string;    // NEW: 期待と現実のズレ分析
+  fightingStyle: string;
+  expectationGap: string;
   finalStatusText: string;
   trueSelf: string;
   verdict: string;
-  diagScores: DiagnosisScores; // レーダーチャート用
+  diagScores: DiagnosisScores;
+  bigFive: BigFiveProfile;
+  reliabilityScore: number;   // 0〜100: 診断の信頼度
+  reliabilityNote: string;    // 信頼度の説明
+  consistencyWarning: string; // 一貫性の警告（空文字なら問題なし）
 }
 
 interface TypeDefinition {
@@ -40,6 +52,89 @@ function calcMBTIType(s: DiagnosisScores): string {
   // selfpreserve: 高→S（具体的・現実的）、低→N（抽象的・理想的）
   const sn = s.selfpreserve >= 0 ? 'S' : 'N';
   return `${ei}${sn}${tf}${jp}`;
+}
+
+// ===============================
+// Big Five マッピング（5軸 → FFM）
+// ===============================
+// 根拠：
+//   Openness        ← risk(+) + expectation(+) + rational(-)  創造・探索・不確実性への開放
+//   Conscientiousness ← rational(+) + risk(-) + selfpreserve(+) 計画・自己制御・目標達成
+//   Extraversion    ← social(+) + risk(+)                     社交・刺激希求
+//   Agreeableness   ← social(+) + selfpreserve(-) + rational(-) 協調・利他・共感
+//   Neuroticism     ← expectation(+) + selfpreserve(-) * -1   情動不安定（感情揺れ・後悔多）
+function calcBigFive(s: DiagnosisScores): BigFiveProfile {
+  const clamp = (v: number) => Math.max(-10, Math.min(10, v));
+  return {
+    openness:          clamp((s.risk * 0.5) + (s.expectation * 0.3) + (s.rational * -0.2)),
+    conscientiousness: clamp((s.rational * 0.5) + (s.risk * -0.3) + (s.selfpreserve * 0.2)),
+    extraversion:      clamp((s.social * 0.6) + (s.risk * 0.4)),
+    agreeableness:     clamp((s.social * 0.5) + (s.selfpreserve * -0.3) + (s.rational * -0.2)),
+    neuroticism:       clamp((s.expectation * 0.5) + (s.selfpreserve * -0.3) * -1),
+  };
+}
+
+// ===============================
+// 信頼度スコア計算
+// ===============================
+// データポイント数・分散・一貫性から0〜100のスコアを算出
+function calcReliability(state: GameState): { score: number; note: string } {
+  const dataPoints = state.actionLog.length + state.emotionLog.length + state.battleLog.length;
+  const dragPoints = state.dragLog.length;
+
+  // データポイント基礎点（最大60点）
+  const basePts = Math.min(60, dataPoints * 3);
+
+  // ドラッグ躊躇データが存在する場合は追加（最大20点）
+  const dragPts = Math.min(20, dragPoints * 5);
+
+  // 各軸のスコア分散（軸ごとに値が偏りすぎていると信頼度低下）
+  const s = state.diagScores;
+  const vals = [s.rational, s.risk, s.social, s.expectation, s.selfpreserve];
+  const allZero = vals.every(v => v === 0);
+  const allSame = vals.every(v => Math.abs(v) > 8);
+  const variancePts = allZero ? 0 : allSame ? 5 : 20;
+
+  const score = Math.min(100, basePts + dragPts + variancePts);
+
+  let note = '';
+  if (score >= 80) {
+    note = '十分なデータが収集されました。この結果は比較的信頼できます。';
+  } else if (score >= 50) {
+    note = 'ある程度のデータが収集されました。参考程度にご覧ください。';
+  } else {
+    note = 'データポイントが少ないため、結果の精度は限られています。';
+  }
+
+  return { score, note };
+}
+
+// ===============================
+// 行動一貫性の警告検出
+// ===============================
+function detectConsistencyWarning(state: GameState): string {
+  const warnings: string[] = [];
+
+  // 「守るため」と宣言 + 全員犠牲
+  const allDead = state.personas.every(p => !p.isAlive);
+  if (state.anchorMotivation === 'protect' && allDead) {
+    warnings.push('「従者を守るため」と宣言しながら、全員を犠牲にした——言動の乖離が極めて大きい。');
+  }
+
+  // 感情で後悔ばかり + 行動では犠牲を選び続けた
+  const sacrificeCount = state.actionLog.filter(a => a.choice === 'B').length;
+  const regretCount = state.emotionLog.filter(e => e.emotionChoice === 'regret').length;
+  if (sacrificeCount >= 3 && regretCount >= 3) {
+    warnings.push('犠牲を繰り返しながら毎回後悔している——「仕方なかった」という合理化が積み重なっている可能性がある。');
+  }
+
+  // 反応時間が極端に短い（衝動的な意思決定）
+  const fastChoices = state.actionLog.filter(a => a.responseTimeMs !== undefined && a.responseTimeMs < 1500).length;
+  if (fastChoices >= 4) {
+    warnings.push(`${fastChoices}回の選択が1.5秒以内に行われた。熟考より直感・衝動が優先される傾向がある。`);
+  }
+
+  return warnings.join('\n');
 }
 
 const TYPE_MAP: Record<string, TypeDefinition> = {
@@ -73,6 +168,10 @@ export function generateDiagnosis(state: GameState): DiagnosisReport {
     description: '真実の口も、お前の本性を一言で言い表せなかった。それがお前の答えだ。',
   };
 
+  const bigFive = calcBigFive(state.diagScores);
+  const { score: reliabilityScore, note: reliabilityNote } = calcReliability(state);
+  const consistencyWarning = detectConsistencyWarning(state);
+
   return {
     mbtiType,
     typeTitle: typeDef.title,
@@ -85,6 +184,10 @@ export function generateDiagnosis(state: GameState): DiagnosisReport {
     trueSelf: buildTrueSelf(state, mbtiType, typeDef),
     verdict: buildVerdict(state),
     diagScores: state.diagScores,
+    bigFive,
+    reliabilityScore,
+    reliabilityNote,
+    consistencyWarning,
   };
 }
 

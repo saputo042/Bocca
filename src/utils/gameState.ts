@@ -25,6 +25,7 @@ export interface ActionLog {
   debuffedName?: string;
   itemUsed?: string;
   itemUsedAtHp?: number;
+  responseTimeMs?: number; // 選択肢表示から決断までの時間（ms）
   resourceDelta: { hp: number; food: number; coins: number };
 }
 

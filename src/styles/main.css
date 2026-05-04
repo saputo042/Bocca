@@ -2350,7 +2350,21 @@ body {
   letter-spacing: 0.1em;
 }
 .btn-secondary:hover { border-color: rgba(168,154,122,0.7); color: var(--text-secondary); }
-.btn-back { @extend .btn-secondary; }
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: transparent;
+  border: 1px solid rgba(168,154,122,0.3);
+  color: var(--text-muted);
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.1em;
+}
+.btn-back:hover { border-color: rgba(168,154,122,0.7); color: var(--text-secondary); }
 
 .node-label {
   font-family: var(--font-sans);
@@ -2471,5 +2485,251 @@ body {
   color: rgba(139,92,246,0.7);
   margin-bottom: var(--spacing-xs);
   font-style: italic;
+}
+
+/* =============================================
+   Big Five / 信頼度 / 一貫性 UI
+============================================= */
+.report-bigfive, .report-reliability {
+  background: rgba(10,8,24,0.7);
+  border: 1px solid rgba(100,80,200,0.25);
+}
+
+.report-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: var(--spacing-md);
+}
+
+.wellbeing-note {
+  border-top: 1px solid rgba(168,154,122,0.2);
+  padding-top: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+/* Big Five バー */
+.bigfive-bars { display: flex; flex-direction: column; gap: 0.6rem; margin: var(--spacing-md) 0; }
+.bf-row { display: grid; grid-template-columns: 120px 1fr 48px; align-items: center; gap: 0.5rem; }
+.bf-label { font-family: var(--font-sans); font-size: 0.75rem; color: var(--text-muted); }
+.bf-bar-bg { height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
+.bf-bar-fill { height: 100%; border-radius: 4px; transition: width 1.2s ease; }
+.bf-value { font-family: var(--font-sans); font-size: 0.75rem; color: var(--text-secondary); text-align: right; }
+
+/* 信頼度メーター */
+.reliability-meter {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin: var(--spacing-md) 0;
+}
+.reliability-bar-bg {
+  flex: 1;
+  height: 10px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.reliability-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(201,162,39,0.7), rgba(201,162,39,1));
+  border-radius: 5px;
+  transition: width 1.5s ease;
+}
+.reliability-score {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: bold;
+  color: var(--color-gold);
+  min-width: 3rem;
+  text-align: right;
+}
+
+/* 一貫性警告 */
+.consistency-warning {
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  color: rgba(239,68,68,0.9);
+  margin: var(--spacing-md) 0;
+  line-height: 1.6;
+}
+.warn-icon { margin-right: 0.4rem; }
+
+/* =============================================
+   タイミングUI（E4 土砂崩れ）
+============================================= */
+.timing-arena {
+  position: relative;
+  width: 100%;
+  height: 260px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(201,162,39,0.2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin: 1rem 0;
+}
+.timing-hit-zone {
+  position: absolute;
+  bottom: 30px;
+  left: 0; right: 0;
+  height: 54px;
+  background: rgba(80, 200, 120, 0.18);
+  border-top: 2px solid rgba(80, 200, 120, 0.7);
+  border-bottom: 2px solid rgba(80, 200, 120, 0.7);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-sans); font-size: 0.8rem; color: rgba(80,200,120,0.8);
+  letter-spacing: 0.1em;
+}
+.timing-rock {
+  position: absolute;
+  top: 0; left: 50%; transform: translateX(-50%);
+  font-size: 2.8rem; line-height: 1;
+  transition: filter 0.1s;
+  filter: drop-shadow(0 0 6px rgba(200,200,200,0.3));
+}
+.timing-rock.rock-in-zone {
+  filter: drop-shadow(0 0 14px rgba(80,200,120,0.9));
+}
+.btn-tap {
+  display: block; width: 100%; padding: 1.1rem;
+  font-family: var(--font-display); font-size: 1.3rem; letter-spacing: 0.15em;
+  color: var(--color-void); background: var(--color-gold);
+  border: none; border-radius: var(--radius-sm); cursor: pointer;
+  margin: 0.5rem 0;
+  transition: background 0.2s, transform 0.1s;
+}
+.btn-tap:active { transform: scale(0.97); background: var(--color-gold-bright); }
+.timing-msg { font-family: var(--font-sans); font-size: 0.9rem; text-align: center; min-height: 1.5rem; margin: 0.5rem 0; }
+.timing-success { color: #50c878; }
+.timing-fail { color: var(--color-crimson-bright); }
+.timing-servant-select { margin-top: 1rem; }
+
+/* =============================================
+   スライダーUI（E6 厳しい検問）
+============================================= */
+.slider-section {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(201,162,39,0.2);
+  border-radius: var(--radius-sm);
+  padding: 1.2rem;
+  margin: 1rem 0;
+}
+.slider-labels {
+  display: flex; justify-content: space-between;
+  font-family: var(--font-sans); font-size: 0.8rem; color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+.force-slider {
+  width: 100%; appearance: none; height: 6px;
+  background: rgba(201,162,39,0.2);
+  border-radius: 3px; outline: none; cursor: pointer;
+  margin-bottom: 0.8rem;
+}
+.force-slider::-webkit-slider-thumb {
+  appearance: none; width: 22px; height: 22px;
+  border-radius: 50%; background: var(--color-gold); cursor: pointer;
+  box-shadow: 0 0 8px rgba(201,162,39,0.5);
+}
+.force-indicator {
+  width: 100%; height: 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px; overflow: hidden; margin-bottom: 0.6rem;
+}
+.force-bar { height: 100%; border-radius: 4px; transition: width 0.1s, background 0.3s; }
+.force-label {
+  font-family: var(--font-sans); font-size: 0.9rem; text-align: center;
+  color: var(--text-primary); min-height: 1.4rem;
+}
+
+/* =============================================
+   ホールドUI（E9 崩れゆく回廊）
+============================================= */
+.hold-servants {
+  display: flex; gap: 1.2rem; justify-content: center;
+  margin: 1.2rem 0;
+}
+.hold-btn {
+  flex: 1; max-width: 140px; padding: 1.4rem 0.8rem;
+  background: rgba(109,40,217,0.2);
+  border: 2px solid rgba(109,40,217,0.5);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-serif); font-size: 1rem; color: var(--text-primary);
+  cursor: pointer; text-align: center; line-height: 1.6;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  user-select: none; -webkit-user-select: none;
+  touch-action: none;
+}
+.hold-btn:active, .hold-btn.held {
+  background: rgba(109,40,217,0.5);
+  border-color: var(--color-purple-bright);
+  transform: scale(0.97);
+}
+.hold-progress-bg {
+  width: 100%; height: 10px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 5px; overflow: hidden; margin: 0.8rem 0;
+}
+.hold-progress-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--color-purple), var(--color-gold));
+  border-radius: 5px; transition: width 0.05s linear;
+}
+.hold-msg {
+  font-family: var(--font-sans); font-size: 0.9rem; text-align: center;
+  color: var(--text-secondary); min-height: 1.5rem; margin: 0.5rem 0;
+}
+
+/* =============================================
+   バトル スキル説明ボックス
+============================================= */
+.skill-desc-box {
+  background: rgba(109,40,217,0.12);
+  border: 1px solid rgba(109,40,217,0.35);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 1rem;
+  font-family: var(--font-sans); font-size: 0.85rem; color: var(--text-secondary);
+  line-height: 1.55; margin: 0.5rem 0;
+}
+.skill-desc-emoji { font-size: 1.1rem; margin-right: 0.4rem; }
+
+/* =============================================
+   フィナーレ Big Five プライマリスタイル
+============================================= */
+.report-bigfive-primary {
+  border-color: rgba(80,200,120,0.35) !important;
+}
+.report-bigfive-primary .report-section-label {
+  color: #50c878;
+}
+.type-reveal-ref {
+  opacity: 0;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(201,162,39,0.15);
+  border-radius: var(--radius-sm);
+  padding: 1.5rem;
+  margin: 1rem 0;
+  text-align: center;
+}
+.type-ref-label {
+  font-family: var(--font-sans); font-size: 0.75rem;
+  color: var(--text-secondary); letter-spacing: 0.1em;
+  text-transform: uppercase; margin-bottom: 0.8rem;
+}
+
+/* =============================================
+   最終供物シーン 従者カード
+============================================= */
+.final-servant-card {
+  display: inline-block;
+  background: rgba(109,40,217,0.15);
+  border: 1px solid rgba(109,40,217,0.4);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1rem;
+  font-family: var(--font-serif); font-size: 0.9rem;
+  color: var(--text-primary); margin: 0.3rem;
 }
 
