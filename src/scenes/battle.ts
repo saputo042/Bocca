@@ -41,6 +41,7 @@ export function startBattle(
   let firstCommand: BattleTurn['command'] | null = null;
   let nextHitBonus = 0;
   let defenseActive = false;
+  const usedSkillServants = new Set<string>();
 
   function renderBattle(): void {
     const playerHp = getGameState().hp;
@@ -120,10 +121,17 @@ export function startBattle(
         const vessel = selectedSkillId ? SKILL_VESSELS.find(v => v.id === selectedSkillId) : null;
         const descBox = document.getElementById('skill-desc-box');
         if (descBox && vessel) {
+          const skillUsed = selectedServant ? usedSkillServants.has(selectedServant) : false;
           descBox.style.display = 'block';
-          descBox.innerHTML = `<span class="skill-desc-emoji">${vessel.battleSkill.emoji}</span> <strong>${vessel.battleSkill.name}</strong>: ${vessel.battleSkill.description}`;
+          descBox.innerHTML = `<span class="skill-desc-emoji">${vessel.battleSkill.emoji}</span> <strong>${vessel.battleSkill.name}</strong>: ${vessel.battleSkill.description}${skillUsed ? ' <span class="skill-used-badge">使用済</span>' : ''}`;
         }
-        document.getElementById('command-grid')!.style.display = 'grid';
+        const grid = document.getElementById('command-grid')!;
+        grid.style.display = 'grid';
+        // スキルボタンの使用済み制御
+        const skillBtn = document.getElementById('cmd-skill') as HTMLButtonElement | null;
+        if (skillBtn && selectedServant) {
+          skillBtn.disabled = usedSkillServants.has(selectedServant);
+        }
       });
     });
 
@@ -167,9 +175,18 @@ export function startBattle(
 
     const logEl = document.getElementById('battle-log-text');
 
+    // ターン終了後の共通処理（パッシブダメージ → 敵攻撃 → 状態確認）
+    async function endTurn(skipEnemyAttack = false): Promise<void> {
+      turns.push(turn);
+      await applyPassiveDamage(logEl);
+      if (enemy.hp <= 0) { finishBattle('victory', 'fight'); return; }
+      if (!skipEnemyAttack) await enemyAttack(logEl);
+      if (getGameState().hp <= 0) { finishBattle('defeat', 'fight'); return; }
+      enableCommands();
+    }
+
     // --- コマンド処理 ---
     if (command === 'flee') {
-      // 逃亡処理
       const vessel = skillId ? SKILL_VESSELS.find(v => v.id === skillId) : null;
       const guaranteed = vessel?.battleSkill.fleeGuaranteed || false;
       const fleeOpt = node.options.find(o => o.id === 'flee')!;
@@ -186,17 +203,17 @@ export function startBattle(
       } else {
         if (logEl) logEl.textContent = '逃げようとしたが、包囲されて失敗した！';
         await sleep(800);
-        // 敵の反撃
-        await enemyAttack(logEl);
+        await endTurn();
+        return;
       }
     } else if (command === 'defend') {
       defenseActive = true;
       addDiagScores({ risk: -1 });
       if (logEl) logEl.textContent = `${servantName}が身構えた。次の攻撃を防ぐ。`;
       await sleep(800);
-      await enemyAttack(logEl);
+      await endTurn();
+      return;
     } else if (command === 'attack') {
-      // 通常攻撃
       const hitChance = 0.7 + nextHitBonus;
       nextHitBonus = 0;
       const hit = Math.random() < hitChance;
@@ -207,15 +224,17 @@ export function startBattle(
         ? `${servantName}が攻撃した！ 敵に${damage}ダメージ！`
         : `${servantName}の攻撃が外れた！`;
       updateEnemyHP();
-      if (logEl) await animateText(logEl, hit ? `敵に${damage}ダメージ！` : '攻撃が外れた！');
       await sleep(600);
-      if (enemy.hp <= 0) { finishBattle('victory', 'fight'); return; }
-      await enemyAttack(logEl);
+      if (enemy.hp <= 0) { turns.push(turn); finishBattle('victory', 'fight'); return; }
+      await endTurn();
+      return;
     } else if (command === 'skill' && useSkillId) {
-      // スキル使用
       const vessel = SKILL_VESSELS.find(v => v.id === useSkillId);
       const skill = vessel?.battleSkill;
       if (!skill) { enableCommands(); return; }
+
+      // スキル使用済みに登録
+      if (servantName) usedSkillServants.add(servantName);
 
       let skillLog = `${servantName}の【${skill.name}】！ `;
       addDiagScores(skill.diagDelta);
@@ -226,36 +245,34 @@ export function startBattle(
           skillLog += `コイン${skill.payCoins}枚を支払い、即決着！`;
           if (logEl) logEl.textContent = skillLog;
           await sleep(800);
+          turns.push(turn);
           finishBattle('victory', 'fight');
           return;
         } else {
           skillLog += 'コインが足りない！失敗！';
           if (logEl) logEl.textContent = skillLog;
           await sleep(800);
-          await enemyAttack(logEl);
-          turns.push(turn);
-          enableCommands();
+          await endTurn();
           return;
         }
       }
       if (skill.fleeGuaranteed) {
-        // transcendenceは固定食料-2コスト、他のflee系はflee選択肢のコストに準拠
         const foodCost = useSkillId === 'transcendence' ? 2 : (node.options.find(o => o.id === 'flee')?.foodCost || 0);
         if (foodCost) applyResourceDelta({ food: -foodCost });
         skillLog += useSkillId === 'transcendence' ? `食料${foodCost}を消費して戦闘をスキップ！` : '完璧な撤退！';
         if (logEl) logEl.textContent = skillLog;
         await sleep(800);
+        turns.push(turn);
         finishBattle('fled', 'flee');
         return;
       }
       if (skill.enemyStun) {
-        skillLog += '敵が動けなくなった！（1ターン）';
+        skillLog += '敵が動けなくなった！（1ターン、敵攻撃なし）';
         if (logEl) logEl.textContent = skillLog;
-        enemy.hp = Math.max(0, enemy.hp - 1); // スタン時も少しダメージ
+        enemy.hp = Math.max(0, enemy.hp - 1);
         updateEnemyHP();
         await sleep(1000);
-        turns.push(turn);
-        enableCommands();
+        await endTurn(/* skipEnemyAttack= */ true);
         return;
       }
       if (skill.defenseBoost) {
@@ -263,42 +280,28 @@ export function startBattle(
         skillLog += '次の攻撃を完全に無効化する！';
         if (logEl) logEl.textContent = skillLog;
         await sleep(800);
-        await enemyAttack(logEl);
-        turns.push(turn);
-        enableCommands();
+        await endTurn();
         return;
       }
       if (skill.healPlayer) {
         applyResourceDelta({ hp: skill.healPlayer });
-        if (skill.selfDamage) {
-          // 従者のHP消費はゲームシステム上は表現上のみ
-        }
         skillLog += `HP+${skill.healPlayer}回復！`;
         if (logEl) logEl.textContent = skillLog;
         updatePlayerHP();
         await sleep(800);
-        await enemyAttack(logEl);
-        turns.push(turn);
-        enableCommands();
+        await endTurn();
         return;
       }
       if (skill.randomEffect) {
         const r = Math.random();
         let dmg = 0;
         if (r < 0.15) {
-          // 大成功
-          dmg = 6;
-          skillLog += '大爆発！！ 超ダメージ！';
+          dmg = 6; skillLog += '大爆発！！ 超ダメージ！';
         } else if (r < 0.5) {
-          // 成功
-          dmg = 3;
-          skillLog += `${dmg}ダメージ！`;
+          dmg = 3; skillLog += `${dmg}ダメージ！`;
         } else if (r < 0.8) {
-          // 普通
-          dmg = 1;
-          skillLog += `${dmg}ダメージ...`;
+          dmg = 1; skillLog += `${dmg}ダメージ...`;
         } else {
-          // 自爆
           applyResourceDelta({ hp: -2 });
           skillLog += '暴走！ 自分が2ダメージを受けた！';
           updatePlayerHP();
@@ -307,10 +310,8 @@ export function startBattle(
         updateEnemyHP();
         if (logEl) logEl.textContent = skillLog;
         await sleep(1000);
-        if (enemy.hp <= 0) { finishBattle('victory', 'fight'); return; }
-        await enemyAttack(logEl);
-        turns.push(turn);
-        enableCommands();
+        if (enemy.hp <= 0) { turns.push(turn); finishBattle('victory', 'fight'); return; }
+        await endTurn();
         return;
       }
       if (skill.nextHitBonus) {
@@ -318,33 +319,26 @@ export function startBattle(
         skillLog += `次の攻撃命中率が${Math.round(skill.nextHitBonus*100)}%アップ！`;
         if (logEl) logEl.textContent = skillLog;
         await sleep(800);
-        await enemyAttack(logEl);
-        turns.push(turn);
-        enableCommands();
+        await endTurn();
         return;
       }
-      // projection（責任転嫁）: 従者1体を盾にして次の攻撃を回避 + その従者に恐怖デバフ
       if (useSkillId === 'projection') {
         const aliveOthers = getGameState().personas.filter(p => p.isAlive && p.customName !== servantName);
         if (aliveOthers.length > 0) {
           const shield = aliveOthers[Math.floor(Math.random() * aliveOthers.length)];
           applyDebuff(shield.customName, '恐怖');
           defenseActive = true;
-          skillLog += `「${shield.customName}」を盾にした！ 次の攻撃を完全回避（${shield.customName}に「恐怖」デバフ）`;
+          skillLog += `「${shield.customName}」を盾にした！（${shield.customName}に「恐怖」デバフ）`;
         } else {
           defenseActive = true;
           skillLog += '防御姿勢を取った！（盾にする従者がいない）';
         }
         if (logEl) logEl.textContent = skillLog;
         await sleep(900);
-        await enemyAttack(logEl);
-        turns.push(turn);
-        enableCommands();
+        await endTurn();
         return;
       }
-
-      // damageMultiplier系
-      // obsession（意地）: HP1の状態では3倍ダメージの捨て身の一撃
+      // damageMultiplier系（obsession含む）
       const isObsession = useSkillId === 'obsession' && getGameState().hp <= 1;
       if (isObsession) skillLog = `${servantName}の【${skill.name}】！ HP1——捨て身の絶死の一撃！ `;
       const mult = isObsession ? 3.0 : (skill.damageMultiplier || 1.0);
@@ -360,16 +354,23 @@ export function startBattle(
       updateEnemyHP();
       updatePlayerHP();
       await sleep(800);
-      if (enemy.hp <= 0) { finishBattle('victory', 'fight'); return; }
-      await enemyAttack(logEl);
-    }
-
-    turns.push(turn);
-    if (getGameState().hp <= 0) {
-      finishBattle('defeat', 'fight');
+      if (enemy.hp <= 0) { turns.push(turn); finishBattle('victory', 'fight'); return; }
+      await endTurn();
       return;
     }
+
+    // ここには到達しないが安全のため
+    turns.push(turn);
     enableCommands();
+  }
+
+  async function applyPassiveDamage(logEl: HTMLElement | null): Promise<void> {
+    const aliveCount = getGameState().personas.filter(p => p.isAlive).length;
+    if (aliveCount <= 0) return;
+    enemy.hp = Math.max(0, enemy.hp - aliveCount);
+    updateEnemyHP();
+    if (logEl) logEl.textContent = `従者たちの連携攻撃！ 敵に${aliveCount}ダメージ！`;
+    await sleep(600);
   }
 
   async function enemyAttack(logEl: HTMLElement | null): Promise<void> {
@@ -422,14 +423,8 @@ export function startBattle(
 
   function enableCommands(): void {
     document.querySelectorAll<HTMLButtonElement>('.battle-servant-card').forEach(b => { b.disabled = false; });
+    document.querySelectorAll<HTMLButtonElement>('.btn-command').forEach(b => { b.disabled = false; });
     document.getElementById('command-grid')!.style.display = 'none';
-  }
-
-  async function animateText(el: HTMLElement, text: string): Promise<void> {
-    el.textContent = text;
-    el.classList.add('battle-log-flash');
-    await sleep(300);
-    el.classList.remove('battle-log-flash');
   }
 
   function finishBattle(outcome: 'victory' | 'defeat' | 'fled', actionId: string): void {
