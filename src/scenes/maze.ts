@@ -455,59 +455,154 @@ function renderFinalSacrifice(container: HTMLElement, node: ScenarioNode): void 
     ${buildHUD(node)}
     <div class="scene scene-ruins" id="final-scene">
       <div class="bg-overlay finale-overlay"></div>
-      <div class="maze-bocca-container active final-bocca">
-        <div class="bocca-mouth bocca-open">
-          <div class="mouth-outer"><div class="mouth-inner"><div class="tongue"></div></div></div>
-          <div class="eye eye-left"></div>
-          <div class="eye eye-right"></div>
-        </div>
-      </div>
-      <div class="maze-content">
-        <div class="node-label">— ${node.title} —</div>
-        <p class="maze-prompt" id="final-prompt"></p>
-        <div class="final-choices">
-          <div class="final-choice-a">
-            <button class="btn-choice btn-final-a" id="btn-final-a">${optA.label}</button>
-          </div>
-          <div class="choice-divider">OR</div>
-          <div class="final-choice-b">
-            <p class="final-choice-hint">最後まで残った従者をBOCCAの口に捧げる</p>
-            <div class="final-servants">
-              ${alive.map(p => {
-                const vessel = SKILL_VESSELS.find(v => v.id === p.skillId);
-                return `<div class="final-servant-card" data-name="${p.customName}">${vessel?.symbol || '?'} ${p.customName}</div>`;
-              }).join('')}
-            </div>
-            <button class="btn-choice btn-b" id="btn-final-b">B. 従者をBOCCAに捧げる</button>
+      <div class="altar-scene-wrap">
+
+        <!-- 石の顔 — 真実の口 -->
+        <div class="altar-bocca-frame">
+          <div class="altar-bocca-label">— 真実の口 —</div>
+          <div class="bocca-mouth bocca-open altar-bocca-large" id="altar-mouth">
+            <div class="mouth-outer"><div class="mouth-inner" id="altar-mouth-inner"><div class="tongue"></div></div></div>
+            <div class="eye eye-left"></div>
+            <div class="eye eye-right"></div>
           </div>
         </div>
+
+        <!-- シチュエーションテキスト -->
+        <p class="altar-situation-text" id="final-prompt"></p>
+
+        <!-- B: 従者を選んで口に差し込む（メインパス） -->
+        <div class="altar-offering-section" id="altar-offering-section">
+          <div class="altar-offer-label">従者を選べ</div>
+          <div class="altar-piece-row" id="altar-piece-row">
+            ${alive.map(p => {
+              const vessel = SKILL_VESSELS.find(v => v.id === p.skillId);
+              return `
+                <div class="altar-stone-piece" id="asp-${p.customName.replace(/\s/g,'_')}" data-name="${p.customName}">
+                  <div class="asp-symbol">${vessel?.symbol || '?'}</div>
+                  <div class="asp-name">${p.customName}</div>
+                  <div class="asp-skill">${vessel?.name || ''}</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- 選択後に表示される押し込みセクション -->
+          <div id="altar-push-section" style="display:none">
+            <div class="altar-sel-display" id="altar-sel-display"></div>
+            <div class="altar-push-hint">ボタンを押し続けて、口に押し込め</div>
+            <button class="btn-altar-push" id="btn-altar-push" touch-action="none">
+              <div class="push-progress-fill" id="push-progress-fill"></div>
+              <span class="push-btn-label">力を込める...</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- A: 自らの血を捧げる（代替パス） -->
+        <div class="altar-alt-section">
+          <div class="altar-alt-divider">— あるいは —</div>
+          <button class="btn-choice btn-final-a" id="btn-final-a">A. 自らの血と命の灯火を捧げる（HP1になる）</button>
+          <div class="altar-alt-note">従者は全員生存・自分のHPが1になる</div>
+        </div>
+
       </div>
     </div>
   `;
 
-  const el = document.getElementById('final-prompt');
-  if (el) sleep(300).then(() => typewriter(el, node.situation, 28));
+  const promptEl = document.getElementById('final-prompt');
+  if (promptEl) sleep(300).then(() => typewriter(promptEl, node.situation, 28));
 
-  // A選択
+  let selectedName: string | null = null;
+
+  // 従者選択
+  document.querySelectorAll<HTMLElement>('.altar-stone-piece').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.altar-stone-piece').forEach(c => c.classList.remove('asp-selected'));
+      card.classList.add('asp-selected');
+      selectedName = card.getAttribute('data-name');
+
+      const dispEl = document.getElementById('altar-sel-display');
+      const vessel = selectedName ? SKILL_VESSELS.find(v => {
+        const p = state.personas.find(p2 => p2.customName === selectedName);
+        return p && v.id === p.skillId;
+      }) : null;
+      if (dispEl && selectedName) {
+        dispEl.innerHTML = `<span class="asp-sel-symbol">${vessel?.symbol || '?'}</span><span class="asp-sel-name">「${selectedName}」を選んだ</span>`;
+      }
+
+      document.getElementById('altar-push-section')!.style.display = 'block';
+      // 口をゆっくり揺らして注意を引く
+      document.getElementById('altar-mouth')?.classList.add('altar-mouth-pulse');
+    });
+  });
+
+  // ホールド押し込みインタラクション
+  let pushRaf: number | null = null;
+  let pushStart = 0;
+  const PUSH_MS = 2200;
+
+  const startPush = (e: Event) => {
+    e.preventDefault();
+    if (!selectedName || pushRaf !== null) return;
+    pushStart = Date.now();
+    const fillEl = document.getElementById('push-progress-fill')!;
+
+    const tick = () => {
+      const pct = Math.min(100, ((Date.now() - pushStart) / PUSH_MS) * 100);
+      fillEl.style.width = `${pct}%`;
+
+      if (pct >= 50) {
+        document.getElementById('altar-mouth-inner')?.classList.add('jaw-closing');
+      }
+      if (pct >= 100) {
+        cancelAnimationFrame(pushRaf!);
+        pushRaf = null;
+        completeSacrifice();
+        return;
+      }
+      pushRaf = requestAnimationFrame(tick);
+    };
+    pushRaf = requestAnimationFrame(tick);
+  };
+
+  const stopPush = (e: Event) => {
+    e.preventDefault();
+    if (pushRaf !== null) { cancelAnimationFrame(pushRaf); pushRaf = null; }
+    const fillEl = document.getElementById('push-progress-fill');
+    if (fillEl) fillEl.style.width = '0%';
+    document.getElementById('altar-mouth-inner')?.classList.remove('jaw-closing');
+  };
+
+  const pushBtn = document.getElementById('btn-altar-push') as HTMLButtonElement;
+  pushBtn.addEventListener('pointerdown', startPush);
+  pushBtn.addEventListener('pointerup', stopPush);
+  pushBtn.addEventListener('pointerleave', stopPush);
+  pushBtn.addEventListener('pointercancel', stopPush);
+
+  const completeSacrifice = () => {
+    if (!selectedName) return;
+    const name = selectedName;
+
+    pushBtn.disabled = true;
+    document.getElementById('altar-mouth-inner')?.classList.add('jaw-closed');
+    document.getElementById('altar-mouth')?.classList.add('altar-swallow-flash');
+
+    sleep(1200).then(() => {
+      sacrificePersona(name, state.currentStep);
+      addDiagScores(optB.diagDelta);
+      const text = optB.description.replace(/{sacrificeName}/g, name);
+      recordAction({ step: state.currentStep, type: 'choice', choice: 'B', label: optB.label, sacrificedName: name, resourceDelta: { hp: 0, food: 0, coins: 0 } });
+      snapshotFinalStatus();
+      showResult(container, node, text, optB.afterStill, () => finishGame(container));
+    });
+  };
+
+  // A選択（自らの血を捧げる）
   document.getElementById('btn-final-a')?.addEventListener('click', () => {
     applyResourceDelta({ hp: -(optA.hpCost || 9) });
     addDiagScores(optA.diagDelta);
     recordAction({ step: state.currentStep, type: 'choice', choice: 'A', label: optA.label, resourceDelta: { hp: -(optA.hpCost||9), food: 0, coins: 0 } });
     snapshotFinalStatus();
     showResult(container, node, optA.description, optA.afterStill, () => finishGame(container));
-  });
-
-  // B選択（ボタン → ドラッグ画面へ遷移）
-  document.getElementById('btn-final-b')?.addEventListener('click', () => {
-    startDragSacrifice(container, { ...node, interactionType: 'dragSacrifice' }, optB, (sacrificedName) => {
-      sacrificePersona(sacrificedName, state.currentStep);
-      addDiagScores(optB.diagDelta);
-      const text = optB.description.replace(/{sacrificeName}/g, sacrificedName);
-      recordAction({ step: state.currentStep, type: 'choice', choice: 'B', label: optB.label, sacrificedName, resourceDelta: { hp: 0, food: 0, coins: 0 } });
-      snapshotFinalStatus();
-      showResult(container, node, text, optB.afterStill, () => finishGame(container));
-    });
-    container.addEventListener('drag-cancelled', () => renderFinalSacrifice(container, node), { once: true });
   });
 }
 

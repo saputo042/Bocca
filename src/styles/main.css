@@ -2733,3 +2733,402 @@ body {
   color: var(--text-primary); margin: 0.3rem;
 }
 
+/* =============================================
+   タイトル — 3ステップカード
+============================================= */
+.title-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1.2rem 0 1rem;
+  flex-wrap: wrap;
+}
+.title-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  background: rgba(201,162,39,0.06);
+  border: 1px solid rgba(201,162,39,0.25);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  min-width: 90px;
+}
+.title-step-num {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--color-gold);
+  letter-spacing: 0.1em;
+}
+.title-step-label {
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.title-step-desc {
+  font-family: var(--font-serif);
+  font-size: 0.78rem;
+  color: var(--text-primary);
+}
+.title-step-arrow {
+  color: var(--color-gold-dim);
+  font-size: 1rem;
+  padding-bottom: 0.5rem;
+}
+
+/* =============================================
+   最終供物シーン — 祭壇レイアウト
+============================================= */
+.altar-scene-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 1rem 2rem;
+  min-height: 100vh;
+  gap: 1rem;
+}
+
+/* 石の顔フレーム */
+.altar-bocca-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 3.5rem;
+}
+.altar-bocca-label {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.3em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+.altar-bocca-large {
+  width: 160px !important;
+  height: 160px !important;
+  margin-bottom: 0 !important;
+}
+.altar-bocca-large .mouth-inner {
+  width: 80px;
+  height: 40px;
+}
+.altar-bocca-large .eye { width: 13px; height: 13px; top: 38px; }
+.altar-bocca-large .eye-left { left: 30px; }
+.altar-bocca-large .eye-right { right: 30px; }
+
+.altar-mouth-pulse {
+  animation: pulse-glow 1.2s ease-in-out infinite !important;
+}
+
+/* 口が閉まるアニメーション */
+@keyframes jawClose {
+  from { height: 40px; border-radius: 0 0 30px 30px; }
+  to   { height: 4px;  border-radius: 0 0 4px 4px; }
+}
+.jaw-closing {
+  animation: jawClose 0.8s ease-in forwards;
+}
+.jaw-closed {
+  height: 4px !important;
+  border-radius: 0 0 4px 4px !important;
+  overflow: hidden;
+}
+
+@keyframes swallowFlash {
+  0%   { filter: drop-shadow(0 0 0px rgba(155,28,28,0)); }
+  40%  { filter: drop-shadow(0 0 30px rgba(155,28,28,0.9)); }
+  100% { filter: drop-shadow(0 0 8px rgba(201,162,39,0.3)); }
+}
+.altar-swallow-flash {
+  animation: swallowFlash 1.2s ease-out forwards;
+}
+
+/* シチュエーションテキスト */
+.altar-situation-text {
+  font-family: var(--font-serif);
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  text-align: center;
+  max-width: 340px;
+  line-height: 1.8;
+  white-space: pre-line;
+}
+
+/* 従者供物セクション */
+.altar-offering-section {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+}
+.altar-offer-label {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.25em;
+  color: var(--color-crimson-bright);
+  text-transform: uppercase;
+}
+
+/* 石の駒 (altar stone pieces) */
+.altar-piece-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+}
+.altar-stone-piece {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  width: 80px;
+  padding: 0.7rem 0.4rem;
+  background: linear-gradient(180deg, #1e1a14 0%, #141010 100%);
+  border: 1px solid rgba(120,100,70,0.5);
+  border-radius: 6px 6px 10px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6), inset 0 1px 0 rgba(200,180,120,0.1);
+}
+.altar-stone-piece:hover {
+  border-color: rgba(201,162,39,0.6);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.7), 0 0 12px rgba(201,162,39,0.2);
+}
+.altar-stone-piece.asp-selected {
+  border-color: var(--color-crimson-bright);
+  background: linear-gradient(180deg, #2a1010 0%, #180808 100%);
+  transform: translateY(-6px);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.8), 0 0 20px rgba(155,28,28,0.5);
+}
+.asp-symbol { font-size: 1.6rem; }
+.asp-name {
+  font-family: var(--font-serif);
+  font-size: 0.62rem;
+  color: var(--text-primary);
+  text-align: center;
+  word-break: break-all;
+}
+.asp-skill {
+  font-family: var(--font-sans);
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* 押し込みセクション */
+#altar-push-section {
+  width: 100%;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  animation: fadeIn 0.4s ease;
+}
+.altar-sel-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  color: var(--color-crimson-bright);
+}
+.asp-sel-symbol { font-size: 1.4rem; }
+.asp-sel-name { font-size: 0.85rem; }
+.altar-push-hint {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+.btn-altar-push {
+  position: relative;
+  width: 100%;
+  max-width: 260px;
+  height: 52px;
+  background: rgba(155,28,28,0.15);
+  border: 2px solid rgba(155,28,28,0.6);
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  user-select: none;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-altar-push:disabled { opacity: 0.5; cursor: not-allowed; }
+.push-progress-fill {
+  position: absolute;
+  left: 0; top: 0;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(155,28,28,0.6), rgba(220,50,50,0.8));
+  transition: none;
+}
+.push-btn-label {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+/* 代替パス (A) */
+.altar-alt-section {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.altar-alt-divider {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.2em;
+}
+.altar-alt-note {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+/* =============================================
+   ドラッグ犠牲 — 石の口ターゲット
+============================================= */
+.drag-mouth-zone {
+  background: rgba(10,8,6,0.7) !important;
+  border: 2px solid rgba(120,90,50,0.5) !important;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5) !important;
+  min-height: 140px !important;
+}
+.drag-mouth-zone.drag-over {
+  border-color: var(--color-crimson-bright) !important;
+  box-shadow: 0 0 24px rgba(155,28,28,0.4) !important;
+}
+.drag-mouth-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem;
+}
+.drag-bocca-mini {
+  width: 80px !important;
+  height: 80px !important;
+  margin-bottom: 0 !important;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+.drag-bocca-mini .mouth-inner { width: 40px; height: 22px; }
+.drag-bocca-mini .eye { width: 7px; height: 7px; top: 20px; }
+.drag-bocca-mini .eye-left { left: 14px; }
+.drag-bocca-mini .eye-right { right: 14px; }
+
+/* 石の従者カード（ドラッグ時） */
+.stone-servant-card {
+  background: linear-gradient(180deg, #1e1a14 0%, #141010 100%) !important;
+  border: 1px solid rgba(120,100,70,0.5) !important;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(200,180,120,0.08) !important;
+}
+.stone-servant-card:hover {
+  border-color: rgba(201,162,39,0.5) !important;
+}
+
+/* =============================================
+   フィナーレ — RFIDスキャンオーバーレイ
+============================================= */
+.rfid-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--color-abyss);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* スキャンバー */
+.rfid-scan-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(201,162,39,0.8), transparent);
+  animation: rfidScan 2.5s linear infinite;
+}
+@keyframes rfidScan {
+  0%   { top: 0%;   opacity: 0.8; }
+  50%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.rfid-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+.rfid-bocca {
+  width: 100px !important;
+  height: 100px !important;
+  margin-bottom: 0 !important;
+}
+.rfid-bocca .mouth-inner { width: 50px; height: 25px; }
+.rfid-bocca .eye { width: 9px; height: 9px; top: 25px; }
+.rfid-bocca .eye-left { left: 18px; }
+.rfid-bocca .eye-right { right: 18px; }
+
+.rfid-jaw-closed {
+  height: 4px !important;
+  border-radius: 0 0 4px 4px !important;
+}
+
+.rfid-msg {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  letter-spacing: 0.1em;
+}
+.rfid-mono {
+  font-family: 'Courier New', monospace;
+  font-size: 0.65rem;
+  color: var(--color-gold-dim);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.rfid-dots {
+  display: flex;
+  gap: 0.5rem;
+}
+.rfid-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--color-gold);
+  animation: rfidDotBlink 0.7s ease-in-out infinite;
+}
+.rfid-dot:nth-child(2) { animation-delay: 0.23s; }
+.rfid-dot:nth-child(3) { animation-delay: 0.46s; }
+@keyframes rfidDotBlink {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50%       { opacity: 1;   transform: scale(1.2); }
+}
+.rfid-done {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.4em;
+  color: var(--color-gold);
+  text-transform: uppercase;
+}
+
+

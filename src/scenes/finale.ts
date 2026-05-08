@@ -25,6 +25,24 @@ export function renderFinaleScene(container: HTMLElement): void {
       <div class="particles-container" id="finale-particles"></div>
       <div class="bg-overlay finale-overlay"></div>
 
+      <!-- RFIDスキャン演出オーバーレイ -->
+      <div class="rfid-overlay" id="rfid-overlay">
+        <div class="rfid-scan-bar" id="rfid-scan-bar"></div>
+        <div class="rfid-center">
+          <div class="bocca-mouth rfid-bocca" id="rfid-bocca">
+            <div class="mouth-outer"><div class="mouth-inner rfid-jaw-closed"><div class="tongue"></div></div></div>
+            <div class="eye eye-left"></div>
+            <div class="eye eye-right"></div>
+          </div>
+          <p class="rfid-msg" id="rfid-msg1" style="opacity:0">口が閉じた...</p>
+          <p class="rfid-mono" id="rfid-msg2" style="opacity:0">BOCCA SYSTEM — READING SOUL DATA</p>
+          <div class="rfid-dots" id="rfid-dots" style="opacity:0">
+            <span class="rfid-dot"></span><span class="rfid-dot"></span><span class="rfid-dot"></span>
+          </div>
+          <p class="rfid-done" id="rfid-done" style="opacity:0">— 判定完了 —</p>
+        </div>
+      </div>
+
       <div class="finale-content">
 
         <div class="finale-header">
@@ -170,7 +188,7 @@ export function renderFinaleScene(container: HTMLElement): void {
   `;
 
   createParticles(document.getElementById('finale-particles')!, 60);
-  runFinaleAnimation(report.verdict);
+  runRFIDIntro(report.verdict);
 
   document.getElementById('btn-restart')?.addEventListener('click', () => {
     resetGameState();
@@ -235,6 +253,37 @@ function getEmotionLabel(choice: string): string {
     numb: '😶 何も感じなかった',
   };
   return map[choice] || choice;
+}
+
+async function runRFIDIntro(verdictText: string): Promise<void> {
+  await sleep(400);
+
+  const m1 = document.getElementById('rfid-msg1');
+  if (m1) await fadeIn(m1, 900);
+  await sleep(1000);
+
+  const m2 = document.getElementById('rfid-msg2');
+  if (m2) await fadeIn(m2, 600);
+  await sleep(600);
+
+  const dots = document.getElementById('rfid-dots');
+  if (dots) await fadeIn(dots, 400);
+  await sleep(1800);
+
+  const done = document.getElementById('rfid-done');
+  if (done) await fadeIn(done, 700);
+  await sleep(1000);
+
+  // RFIDオーバーレイをフェードアウト
+  const overlay = document.getElementById('rfid-overlay');
+  if (overlay) {
+    overlay.style.transition = 'opacity 1.2s ease';
+    overlay.style.opacity = '0';
+    await sleep(1200);
+    overlay.remove();
+  }
+
+  await runFinaleAnimation(verdictText);
 }
 
 async function runFinaleAnimation(verdictText: string): Promise<void> {

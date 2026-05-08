@@ -31,12 +31,12 @@ export function startDragSacrifice(
       <div class="bg-overlay"></div>
       <div class="drag-content">
         <div class="drag-title">——従者を選んで、捧げよ——</div>
-        <p class="drag-hint">従者カードをドラッグして、供物台に落としてください</p>
+        <p class="drag-hint">従者の駒を口の中にドラッグせよ</p>
         <div class="drag-servants" id="drag-servants">
           ${alive.map(p => {
             const vessel = SKILL_VESSELS.find(v => v.id === p.skillId);
             return `
-              <div class="drag-servant-card" id="dsc-${p.customName}" data-name="${p.customName}" draggable="true">
+              <div class="drag-servant-card stone-servant-card" id="dsc-${p.customName}" data-name="${p.customName}" draggable="true">
                 <div class="dsc-symbol">${vessel?.symbol || '?'}</div>
                 <div class="dsc-name">${p.customName}</div>
                 <div class="dsc-skill">${vessel?.name || ''}</div>
@@ -44,9 +44,13 @@ export function startDragSacrifice(
             `;
           }).join('')}
         </div>
-        <div class="drag-target-zone" id="drag-target">
-          <div class="drag-target-inner">
-            <div class="drag-target-icon">💀</div>
+        <div class="drag-target-zone drag-mouth-zone" id="drag-target">
+          <div class="drag-mouth-face">
+            <div class="bocca-mouth bocca-open drag-bocca-mini">
+              <div class="mouth-outer"><div class="mouth-inner drag-mouth-opening"><div class="tongue"></div></div></div>
+              <div class="eye eye-left"></div>
+              <div class="eye eye-right"></div>
+            </div>
             <div class="drag-target-label">ここに落とす</div>
           </div>
         </div>
