@@ -4292,3 +4292,13 @@ body {
 .battle-click-label,.battle-timer-label{font-size:0.9rem;color:var(--text-secondary)}
 .battle-hint{font-size:0.8rem;color:var(--text-muted)}
 .mechanic-hint{font-size:0.88rem;color:var(--text-muted);text-align:center;font-style:italic}
+
+/* ST-01 耐久 × 生贄ゲージ */
+.endurance-gauge-row{display:flex;flex-direction:column;gap:0.75rem;width:100%;max-width:420px;margin:0 auto 1.2rem}
+.endurance-gauge-block{display:flex;flex-direction:column;gap:0.3rem}
+.gauge-label{font-size:0.78rem;color:var(--color-gold);letter-spacing:0.05em;text-align:center}
+.sacrifice-gauge-label{color:#ef4444}
+.sacrifice-bar-bg{background:rgba(120,0,0,0.25)!important}
+.sacrifice-bar-fill{height:100%;background:linear-gradient(90deg,#7f1d1d,#ef4444);border-radius:4px;transition:width 0.18s linear}
+.sacrifice-label{font-size:0.82rem;color:#f87171;text-align:center;font-weight:600}
+.endurance-label{font-size:0.82rem;color:var(--color-gold);text-align:center;font-weight:600}

@@ -158,6 +158,11 @@ function addNextButton(container: HTMLElement, parentEl: HTMLElement): void {
 // ===============================
 // ST-01 茨の泉（耐久長押し）
 // ===============================
+// 【新メカニクス】
+//   押している間  → HPが減る（茨の痛み）
+//   押していない間 → 生贄ゲージが上昇
+//   生贄ゲージ満杯 → N最低の従者が自動生贄
+//   耐久バー満杯   → 生贄なしクリア
 
 async function runStage01(container: HTMLElement): Promise<void> {
   const state = getState();
@@ -171,90 +176,138 @@ async function runStage01(container: HTMLElement): Promise<void> {
   await narrateText(stageData.description, 40);
   await sleep(600);
 
+  // N最低の従者（生贄候補）
   const targetServant = findByDimension(state.aliveServants, 'N', 'min');
 
   setMechanic(`
     <div class="thorn-scene" id="thorn-scene">
       <div class="thorn-side thorn-left" id="thorn-left"></div>
       <div class="thorn-center">
-        <div class="progress-bar-container">
-          <div class="progress-bar-fill" id="endurance-bar" style="width:0%"></div>
+
+        <div class="endurance-gauge-row">
+          <div class="endurance-gauge-block">
+            <p class="gauge-label">耐久（押し続けた時間）</p>
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="endurance-bar" style="width:0%"></div>
+            </div>
+            <p class="endurance-label"><span id="endurance-pct">0</span>%</p>
+          </div>
+          <div class="endurance-gauge-block">
+            <p class="gauge-label sacrifice-gauge-label">生贄ゲージ（離している時間）</p>
+            <div class="progress-bar-container sacrifice-bar-bg">
+              <div class="sacrifice-bar-fill" id="sacrifice-bar" style="width:0%"></div>
+            </div>
+            <p class="sacrifice-label"><span id="sacrifice-pct">0</span>%</p>
+          </div>
         </div>
-        <p class="endurance-label">耐久 <span id="endurance-pct">0</span>%</p>
-        <button class="btn-hold-large" id="btn-hold" style="touch-action:none;user-select:none">押し続けろ</button>
-        <p class="mechanic-hint">離すと茨が速くなる</p>
+
+        <button class="btn-hold-large" id="btn-hold" style="touch-action:none;user-select:none">
+          押し続けろ
+        </button>
+        <p class="mechanic-hint">
+          押すと茨に刺さる。<br>離すと口が従者を求める。
+        </p>
       </div>
       <div class="thorn-side thorn-right" id="thorn-right"></div>
     </div>
-    ${targetServant ? `
-      <div class="sacrifice-quick-btn">
-        <button class="btn-sacrifice" id="btn-sac-01">従者を捧げる（${targetServant.name}）</button>
-      </div>
-    ` : ''}
     <div class="stage-result" id="stage-result" style="display:none"></div>
   `);
 
   let isHolding = false;
-  let holdMs = 0;
-  let thornPos = 0;
+  let holdMs = 0;        // 累積押し時間
+  let sacrificeMs = 0;   // 累積非押し時間
   let gameActive = true;
-  let holdTickId: ReturnType<typeof setInterval> | null = null;
   let totalDamage = 0;
 
-  const thornInterval = setInterval(() => {
-    if (!gameActive) return;
-    thornPos = isHolding
-      ? Math.min(100, thornPos + 0.8)
-      : Math.min(100, thornPos + 5);
+  // 押している間のダメージ ticker (100ms)
+  const holdTicker = setInterval(() => {
+    if (!gameActive || !isHolding) return;
 
+    // 耐久バー更新
+    holdMs += 100;
+    const endPct = Math.min(100, Math.round((holdMs / cfg.totalDurationMs) * 100));
+    const endBar = document.getElementById('endurance-bar');
+    const endPctEl = document.getElementById('endurance-pct');
+    if (endBar) endBar.style.width = `${endPct}%`;
+    if (endPctEl) endPctEl.textContent = String(endPct);
+
+    // ダメージ（押している間）
+    const dmgPerTick = Math.ceil(cfg.penaltyHpPerSec * 0.1);
+    changeHp(-dmgPerTick);
+    totalDamage += dmgPerTick;
+    updateHpDisplay();
+    flashDamage();
+
+    if (state.hp <= 0) {
+      finish(false, true, null);
+      return;
+    }
+
+    // 耐久クリア
+    if (holdMs >= cfg.totalDurationMs) {
+      finish(true, false, null);
+    }
+  }, 100);
+
+  // 押していない間の生贄ゲージ ticker (200ms)
+  const sacrificeTicker = setInterval(() => {
+    if (!gameActive || isHolding) return;
+
+    sacrificeMs += 200;
+    const sacPct = Math.min(100, Math.round((sacrificeMs / cfg.totalDurationMs) * 100));
+    const sacBar = document.getElementById('sacrifice-bar');
+    const sacPctEl = document.getElementById('sacrifice-pct');
+    if (sacBar) sacBar.style.width = `${sacPct}%`;
+    if (sacPctEl) sacPctEl.textContent = String(sacPct);
+
+    // 茨を近づける（視覚的脅迫）
+    const thornProgress = sacPct;
     const left = document.getElementById('thorn-left');
     const right = document.getElementById('thorn-right');
-    if (left) left.style.transform = `translateX(${thornPos - 100}%)`;
-    if (right) right.style.transform = `translateX(${100 - thornPos}%)`;
+    if (left) left.style.transform = `translateX(${thornProgress - 100}%)`;
+    if (right) right.style.transform = `translateX(${100 - thornProgress}%)`;
 
-    if (!isHolding && thornPos >= 50) {
-      const dmgPerTick = Math.ceil(cfg.penaltyHpPerSec * 0.2);
-      changeHp(-dmgPerTick);
-      totalDamage += dmgPerTick;
-      updateHpDisplay();
-      flashDamage();
-      if (state.hp <= 0) {
-        gameActive = false;
-        clearInterval(thornInterval);
-        if (holdTickId) clearInterval(holdTickId);
-        docCleanup();
-        showGameOver(container);
-      }
+    // 生贄ゲージ満杯 → 自動生贄
+    if (sacrificeMs >= cfg.totalDurationMs) {
+      finish(false, false, targetServant);
     }
   }, 200);
+
+  function finish(endured: boolean, dead: boolean, autoSacServant: TarotServant | null): void {
+    if (!gameActive) return;
+    gameActive = false;
+    clearInterval(holdTicker);
+    clearInterval(sacrificeTicker);
+    docCleanup();
+
+    if (dead) {
+      showGameOver(container);
+      return;
+    }
+
+    let sacrificed = false;
+    let servant: TarotServant | null = null;
+
+    if (!endured && autoSacServant) {
+      sacrificed = true;
+      servant = autoSacServant;
+      sacrificeServant(autoSacServant.id);
+      playSFX('sacrifice');
+    }
+
+    finishStage01(totalDamage, sacrificed, servant);
+  }
 
   function startHolding(): void {
     if (!gameActive || isHolding) return;
     isHolding = true;
     document.getElementById('btn-hold')?.classList.add('active');
-    holdTickId = setInterval(() => {
-      if (!gameActive || !isHolding) { if (holdTickId) { clearInterval(holdTickId); holdTickId = null; } return; }
-      holdMs += 100;
-      const pct = Math.min(100, Math.round((holdMs / cfg.totalDurationMs) * 100));
-      const bar = document.getElementById('endurance-bar');
-      const pctEl = document.getElementById('endurance-pct');
-      if (bar) bar.style.width = `${pct}%`;
-      if (pctEl) pctEl.textContent = String(pct);
-      if (holdMs >= cfg.totalDurationMs) {
-        clearInterval(holdTickId!); holdTickId = null;
-        clearInterval(thornInterval);
-        gameActive = false;
-        docCleanup();
-        finishStage01(totalDamage, false, null);
-      }
-    }, 100);
   }
 
   function stopHolding(): void {
     if (!isHolding) return;
     isHolding = false;
     document.getElementById('btn-hold')?.classList.remove('active');
-    if (holdTickId) { clearInterval(holdTickId); holdTickId = null; }
   }
 
   function docCleanup(): void {
@@ -268,24 +321,12 @@ async function runStage01(container: HTMLElement): Promise<void> {
   document.addEventListener('mouseup', stopHolding);
   document.addEventListener('touchend', stopHolding);
 
-  document.getElementById('btn-sac-01')?.addEventListener('click', () => {
-    if (!targetServant || !gameActive) return;
-    gameActive = false;
-    clearInterval(thornInterval);
-    if (holdTickId) clearInterval(holdTickId);
-    stopHolding();
-    docCleanup();
-    sacrificeServant(targetServant.id);
-    playSFX('sacrifice');
-    finishStage01(0, true, targetServant);
-  });
-
   async function finishStage01(dmg: number, sacrificed: boolean, servant: TarotServant | null): Promise<void> {
     const resultEl = document.getElementById('stage-result')!;
     resultEl.style.display = 'block';
     let msg: string;
     if (sacrificed && servant) {
-      msg = `${servant.name}が茨に身を投じた。あなたは無傷で抜け出した。`;
+      msg = `${servant.name}が茨に身を投じた。口はその魂を喰らい、あなたは無傷で抜け出した。`;
     } else {
       msg = `茨に刻まれながらも耐え抜いた。${dmg > 0 ? `HP -${dmg}` : '完璧な耐久。'}`;
     }
