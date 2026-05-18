@@ -4293,6 +4293,33 @@ body {
 .battle-hint{font-size:0.8rem;color:var(--text-muted)}
 .mechanic-hint{font-size:0.88rem;color:var(--text-muted);text-align:center;font-style:italic}
 
+/* 診断モード選択 */
+.diag-mode-select{display:flex;flex-direction:column;align-items:center;gap:1.5rem;padding:1rem 0}
+.diag-mode-subtitle{font-size:0.9rem;color:var(--text-muted);text-align:center;max-width:360px;line-height:1.6}
+.diag-mode-cards{display:flex;gap:1.2rem;flex-wrap:wrap;justify-content:center}
+.diag-mode-card{display:flex;flex-direction:column;align-items:center;gap:0.5rem;padding:1.6rem 1.8rem;background:rgba(15,10,25,0.8);border:1px solid rgba(201,162,39,0.3);border-radius:10px;cursor:pointer;transition:all 0.2s ease;min-width:150px;max-width:180px;color:var(--text-primary)}
+.diag-mode-card:hover{border-color:var(--color-gold);background:rgba(30,20,50,0.9);box-shadow:0 0 18px rgba(201,162,39,0.2);transform:translateY(-2px)}
+.diag-mode-icon{font-size:2.2rem;line-height:1}
+.diag-mode-name{font-family:var(--font-display);font-size:1rem;color:var(--color-gold);letter-spacing:0.08em}
+.diag-mode-desc{font-size:0.75rem;color:var(--text-muted);text-align:center;line-height:1.5}
+
+/* 直接入力モード */
+.diag-input-screen{display:flex;flex-direction:column;gap:1.2rem;width:100%;max-width:500px;margin:0 auto}
+.diag-input-subtitle{font-size:0.85rem;color:var(--text-muted);text-align:center}
+.diag-input-list{display:flex;flex-direction:column;gap:0.9rem}
+.diag-input-row{display:flex;flex-direction:column;gap:0.3rem;padding:0.75rem 1rem;background:rgba(15,10,25,0.7);border:1px solid rgba(201,162,39,0.15);border-radius:8px}
+.diag-input-labels{display:flex;flex-direction:column;gap:0.1rem}
+.diag-input-dim{font-family:var(--font-display);font-size:0.9rem;color:var(--color-gold)}
+.diag-input-dim-desc{font-size:0.72rem;color:var(--text-muted)}
+.diag-input-controls{display:flex;align-items:center;gap:0.75rem;margin-top:0.4rem}
+.diag-slider{flex:1;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:rgba(201,162,39,0.2);outline:none;cursor:pointer}
+.diag-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--color-gold);cursor:pointer;box-shadow:0 0 6px rgba(201,162,39,0.5)}
+.diag-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--color-gold);cursor:pointer;border:none}
+.diag-slider-val{font-family:var(--font-display);font-size:1rem;color:var(--color-gold);min-width:2.5rem;text-align:right;font-weight:700}
+.diag-input-actions{display:flex;gap:1rem;justify-content:center;margin-top:0.5rem}
+.btn-back-quiz{background:none;border:none;color:var(--text-muted);font-size:0.82rem;cursor:pointer;padding:0.4rem 0;margin-top:0.5rem;align-self:flex-start}
+.btn-back-quiz:hover{color:var(--color-gold)}
+
 /* ST-02 狼接近シーン */
 .wolf-approach-scene{display:flex;flex-direction:column;align-items:center;gap:0.75rem;width:100%;padding:0.5rem 0}
 .wolf-forest-bg{position:absolute;inset:0;background:radial-gradient(ellipse at center bottom,#0a0505 0%,#050509 70%);pointer-events:none;z-index:0}
