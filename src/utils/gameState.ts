@@ -24,6 +24,7 @@ export interface GameState {
   aliveServants: TarotServant[];
   hp: number;
   maxHp: number;
+  gold: number;
   currentStage: number;
   gameOver: boolean;
   bossDefeated: boolean;
@@ -51,6 +52,7 @@ function createInitial(): GameState {
     aliveServants: [],
     hp: 100,
     maxHp: 100,
+    gold: 0,
     currentStage: 1,
     gameOver: false,
     bossDefeated: false,
@@ -64,6 +66,10 @@ function createInitial(): GameState {
     st08TrustAfterBetrayal: null,
     stageLog: [],
   };
+}
+
+export function addGold(amount: number): void {
+  _state.gold = Math.max(0, _state.gold + amount);
 }
 
 export function getState(): GameState { return _state; }

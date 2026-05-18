@@ -4293,6 +4293,23 @@ body {
 .battle-hint{font-size:0.8rem;color:var(--text-muted)}
 .mechanic-hint{font-size:0.88rem;color:var(--text-muted);text-align:center;font-style:italic}
 
+/* ST-02 狼接近シーン */
+.wolf-approach-scene{display:flex;flex-direction:column;align-items:center;gap:0.75rem;width:100%;padding:0.5rem 0}
+.wolf-forest-bg{position:absolute;inset:0;background:radial-gradient(ellipse at center bottom,#0a0505 0%,#050509 70%);pointer-events:none;z-index:0}
+.wolf-img-wrap{position:relative;z-index:2;display:flex;justify-content:center;align-items:flex-end;width:100%;min-height:160px;padding-bottom:0.5rem}
+.wolf-img{width:6%;max-width:6%;object-fit:contain;transition:width 0.08s linear,filter 0.08s linear;display:block;margin:0 auto;filter:drop-shadow(0 0 4px rgba(180,0,0,0.3))}
+.wolf-danger-bar-wrap{position:relative;z-index:2;width:90%;max-width:420px;height:10px;background:rgba(60,0,0,0.4);border-radius:5px;overflow:hidden;border:1px solid rgba(180,0,0,0.3)}
+.wolf-danger-bar{height:100%;background:linear-gradient(90deg,#7f1d1d,#ef4444,#fca5a5);border-radius:5px;transition:width 0.08s linear}
+.wolf-hud{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:center;width:90%;max-width:420px;gap:1rem}
+.wolf-gold-display{display:flex;align-items:center;gap:0.4rem;font-family:var(--font-display);font-size:1.1rem;color:var(--color-gold)}
+.wolf-gold-icon{font-size:0.9rem}
+.wolf-gold-label{font-size:0.8rem;color:var(--text-muted)}
+.wolf-gold-val{font-size:1.4rem;font-weight:700;color:var(--color-gold);text-shadow:0 0 8px rgba(201,162,39,0.6)}
+.wolf-time-label{font-size:0.82rem;color:#f87171;font-style:italic}
+.btn-wolf-escape{position:relative;z-index:2;padding:0.9rem 2.5rem;font-size:1.1rem;font-family:var(--font-display);font-weight:700;letter-spacing:0.12em;background:rgba(139,0,0,0.4);border:2px solid #ef4444;color:#fca5a5;border-radius:6px;cursor:pointer;transition:all 0.15s ease;text-transform:uppercase}
+.btn-wolf-escape:hover{background:rgba(220,38,38,0.5);color:#fff;box-shadow:0 0 16px rgba(239,68,68,0.5)}
+.btn-wolf-escape:active{transform:scale(0.96)}
+
 /* ST-01 耐久 × 生贄ゲージ */
 .endurance-gauge-row{display:flex;flex-direction:column;gap:0.75rem;width:100%;max-width:420px;margin:0 auto 1.2rem}
 .endurance-gauge-block{display:flex;flex-direction:column;gap:0.3rem}

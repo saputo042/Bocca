@@ -2,7 +2,7 @@
 
 import {
   navigateTo, getState, resetGameState, changeHp, sacrificeServant, recordStageResult,
-  advanceStage, sleep, typewriter, createParticles,
+  advanceStage, sleep, typewriter, createParticles, addGold,
 } from '../utils/gameState';
 import { findByDimension, TAROT_SYMBOLS, type TarotServant } from '../data/tarot';
 import { STAGES } from '../data/stages';
@@ -345,186 +345,225 @@ async function runStage01(container: HTMLElement): Promise<void> {
 }
 
 // ===============================
-// ST-02 オオカミの出現（タイミング）
+// ST-02 オオカミの出現（接近 × リスク報酬）
 // ===============================
+// 【新メカニクス】
+//   狼が画面奥から近づいてくる（SVG拡大）
+//   待つほど金貨が増える（リスク報酬）
+//   「逃げろ！」で金貨確定、タイミングで逃走成功
+//   100%到達（逃げ遅れ）→ ランダム従者がロスト
 
 async function runStage02(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[1];
-  const cfg = LEVER_CONFIG.timing.st02;
 
+  // 接近時間（ミリ秒）
+  const APPROACH_DURATION = 12000;
+  // 金貨レート: 1秒ごとに加算
+  const GOLD_PER_SEC = 5;
   container.innerHTML = stageLayout(2, stageData.name, stageData.area);
   createParticles(document.getElementById('stage-particles')!, 15);
 
   await sleep(300);
-  await narrateText(stageData.description, 40);
-  await sleep(600);
+  await narrateText('暗い森の奥から、二つの赤い目が光る。オオカミだ。待てば待つほど報酬は増えるが——逃げ遅れれば喰われる。', 38);
+  await sleep(500);
 
+  // E最高の従者（生贄候補：オオカミを引きつける）
   const targetServant = findByDimension(state.aliveServants, 'E', 'max');
 
   setMechanic(`
-    <div class="timing-arena-wrap">
-      <div class="timing-info-row">
-        <span>ミス: <span id="miss-count">0</span> / ${cfg.allowedMisses}</span>
-        <span>波: <span id="wave-num">1</span> / ${cfg.waveCount}</span>
+    <div class="wolf-approach-scene" id="wolf-scene">
+      <div class="wolf-forest-bg"></div>
+
+      <div class="wolf-img-wrap" id="wolf-wrap">
+        <img src="/wolf.svg" class="wolf-img" id="wolf-img" alt="wolf" draggable="false"/>
       </div>
-      <div class="timing-arena" id="timing-arena">
-        <div class="hit-zone" id="hit-zone"></div>
-        <div class="threat-element" id="threat-el">&#x1F43A;</div>
+
+      <div class="wolf-danger-bar-wrap">
+        <div class="wolf-danger-bar" id="wolf-danger-bar" style="width:0%"></div>
       </div>
-      <p class="timing-status" id="timing-status">構えろ…</p>
-      <button class="btn-timing-action" id="btn-timing" disabled>気を解放！</button>
+
+      <div class="wolf-hud">
+        <div class="wolf-gold-display">
+          <span class="wolf-gold-icon">&#x25C6;</span>
+          <span class="wolf-gold-label">金貨:</span>
+          <span class="wolf-gold-val" id="wolf-gold">0</span>
+        </div>
+        <div class="wolf-time-display">
+          <span class="wolf-time-label" id="wolf-time-label">待機中…</span>
+        </div>
+      </div>
+
+      <button class="btn-wolf-escape" id="btn-escape">逃げろ！</button>
+
+      ${targetServant ? `
+        <div class="sacrifice-quick-btn" style="margin-top:0.5rem">
+          <button class="btn-sacrifice" id="btn-sac-02">
+            ${targetServant.name} を囮にする（E最高の従者）
+          </button>
+        </div>
+      ` : ''}
     </div>
-    ${targetServant ? `
-      <div class="sacrifice-quick-btn">
-        <button class="btn-sacrifice" id="btn-sac-02">従者を捧げる（${targetServant.name}）— 引きつけ</button>
-      </div>
-    ` : ''}
     <div class="stage-result" id="stage-result" style="display:none"></div>
   `);
 
-  let sacrificed = false;
   let gameActive = true;
+  let elapsedMs = 0;
+  let earnedGold = 0;
+  let escaped = false;
 
-  document.getElementById('btn-sac-02')?.addEventListener('click', () => {
-    if (!targetServant || sacrificed || !gameActive) return;
-    sacrificed = true;
+  // 狼接近アニメーション（rAFループ）
+  let lastTick = Date.now();
+  let rafId: number;
+
+  function tick(): void {
+    if (!gameActive) return;
+    const now = Date.now();
+    const delta = now - lastTick;
+    lastTick = now;
+    elapsedMs += delta;
+
+    const progress = Math.min(1, elapsedMs / APPROACH_DURATION);
+
+    // 狼サイズ: 6% → 90%（画面幅比）
+    const wolfSize = 6 + progress * 84;
+    const wolfEl = document.getElementById('wolf-img');
+    if (wolfEl) {
+      (wolfEl as HTMLImageElement).style.width = `${wolfSize}%`;
+      (wolfEl as HTMLImageElement).style.maxWidth = `${wolfSize}%`;
+      // 赤みを徐々に増す
+      const redFilter = Math.round(progress * 120);
+      (wolfEl as HTMLImageElement).style.filter =
+        `drop-shadow(0 0 ${Math.round(progress * 24)}px rgba(180,0,0,${progress * 0.9})) sepia(${redFilter}%)`;
+    }
+
+    // 危険ゲージ
+    const dangerBar = document.getElementById('wolf-danger-bar');
+    if (dangerBar) dangerBar.style.width = `${progress * 100}%`;
+
+    // 金貨加算（秒ごと）
+    earnedGold = Math.floor((elapsedMs / 1000) * GOLD_PER_SEC);
+    const goldEl = document.getElementById('wolf-gold');
+    if (goldEl) goldEl.textContent = String(earnedGold);
+
+    // 時間ラベル
+    const timeLabel = document.getElementById('wolf-time-label');
+    if (timeLabel) {
+      if (progress < 0.4) timeLabel.textContent = '遠い…まだ余裕がある';
+      else if (progress < 0.7) timeLabel.textContent = '近づいてくる…';
+      else if (progress < 0.9) timeLabel.textContent = '危険！ 今すぐ逃げろ！';
+      else timeLabel.textContent = '！！！';
+    }
+
+    // 100%到達 → 噛まれる
+    if (progress >= 1.0) {
+      gameActive = false;
+      cancelAnimationFrame(rafId);
+      onWolfReach();
+      return;
+    }
+
+    rafId = requestAnimationFrame(tick);
+  }
+  rafId = requestAnimationFrame(tick);
+
+  // 逃走ボタン
+  document.getElementById('btn-escape')?.addEventListener('click', () => {
+    if (!gameActive || escaped) return;
+    escaped = true;
     gameActive = false;
-    sacrificeServant(targetServant.id);
-    playSFX('sacrifice');
-    endStage02(0, true, targetServant);
+    cancelAnimationFrame(rafId);
+
+    const progress = Math.min(1, elapsedMs / APPROACH_DURATION);
+    const isSafe = progress < 0.95; // 95%以上は間に合わない
+
+    if (isSafe) {
+      onEscapeSuccess(earnedGold);
+    } else {
+      // 逃げようとしたが間に合わなかった
+      onEscapeFail(earnedGold);
+    }
   });
 
-  let misses = 0;
-  let currentWave = 0;
-  let totalDamage = 0;
+  // 従者を囮にする（E最高）
+  document.getElementById('btn-sac-02')?.addEventListener('click', () => {
+    if (!targetServant || !gameActive) return;
+    gameActive = false;
+    escaped = true;
+    cancelAnimationFrame(rafId);
+    sacrificeServant(targetServant.id);
+    playSFX('sacrifice');
+    // 囮を使うと金貨も確定（ボーナス付き）
+    const bonusGold = earnedGold + 10;
+    addGold(bonusGold);
+    endStage02(`${targetServant.name}がオオカミを引きつけた。あなたは金貨${bonusGold}枚を手に脱出した。`, 'sacrifice', targetServant, 0, bonusGold);
+  });
 
-  function startWave(): void {
-    if (!gameActive) return;
-    const waveEl = document.getElementById('wave-num');
-    if (waveEl) waveEl.textContent = String(currentWave + 1);
-
-    const threatEl = document.getElementById('threat-el');
-    const hitZone = document.getElementById('hit-zone');
-    const actionBtn = document.getElementById('btn-timing') as HTMLButtonElement | null;
-    const statusEl = document.getElementById('timing-status');
-
-    if (!threatEl || !actionBtn) return;
-
-    threatEl.style.transition = 'none';
-    threatEl.style.left = '90%';
-    if (hitZone) hitZone.classList.remove('hit-zone-active');
-
-    const travelMs = 1800 + currentWave * 150;
-    const hitZoneStart = 0.4;
-    const hitZoneEnd = hitZoneStart + (cfg.windowMs / travelMs);
-    let pressed = false;
-    let waveStart = 0;
-    let rafId: number;
-
-    if (actionBtn) actionBtn.disabled = false;
-    if (statusEl) statusEl.textContent = 'オオカミが跳びかかる...';
-
-    setTimeout(() => {
-      if (!gameActive) return;
-      waveStart = Date.now();
-      threatEl.style.transition = `left ${travelMs}ms linear`;
-      threatEl.style.left = '5%';
-
-      function tick(): void {
-        if (pressed || !gameActive) return;
-        const t = (Date.now() - waveStart) / travelMs;
-        if (t >= hitZoneStart && t <= hitZoneEnd) {
-          if (hitZone) hitZone.classList.add('hit-zone-active');
-        } else {
-          if (hitZone) hitZone.classList.remove('hit-zone-active');
-        }
-        if (t >= 1.0) {
-          cancelAnimationFrame(rafId);
-          if (!pressed) {
-            pressed = true;
-            if (actionBtn) actionBtn.disabled = true;
-            misses++;
-            const missEl = document.getElementById('miss-count');
-            if (missEl) missEl.textContent = String(misses);
-            const dmg = 12;
-            changeHp(-dmg);
-            totalDamage += dmg;
-            updateHpDisplay();
-            flashDamage();
-            if (statusEl) statusEl.textContent = `噛みつかれた！ HP -${dmg}`;
-            if (state.hp <= 0) { gameActive = false; showGameOver(container); return; }
-            if (misses >= cfg.allowedMisses) {
-              endStage02(totalDamage, false, null);
-              return;
-            }
-            currentWave++;
-            setTimeout(() => { if (gameActive) startWave(); }, cfg.waveIntervalMs);
-          }
-          return;
-        }
-        rafId = requestAnimationFrame(tick);
-      }
-      rafId = requestAnimationFrame(tick);
-
-      if (actionBtn) {
-        actionBtn.onclick = () => {
-          if (pressed || !gameActive) return;
-          pressed = true;
-          cancelAnimationFrame(rafId);
-          actionBtn.disabled = true;
-          if (hitZone) hitZone.classList.remove('hit-zone-active');
-          const t = (Date.now() - waveStart) / travelMs;
-          const inZone = t >= hitZoneStart && t <= hitZoneEnd;
-          if (inZone) {
-            playSFX('reveal');
-            if (statusEl) statusEl.textContent = '命中！ オオカミが退いた！';
-            threatEl.style.transition = 'opacity 0.3s';
-            threatEl.style.opacity = '0';
-            setTimeout(() => { if (threatEl) { threatEl.style.opacity = '1'; threatEl.style.transition = ''; } }, 400);
-          } else {
-            misses++;
-            const missEl = document.getElementById('miss-count');
-            if (missEl) missEl.textContent = String(misses);
-            const dmg = 10;
-            changeHp(-dmg);
-            totalDamage += dmg;
-            updateHpDisplay();
-            flashDamage();
-            if (statusEl) statusEl.textContent = `タイミングを外した。 HP -${dmg}`;
-            if (state.hp <= 0) { gameActive = false; showGameOver(container); return; }
-            if (misses >= cfg.allowedMisses) { endStage02(totalDamage, false, null); return; }
-          }
-          currentWave++;
-          setTimeout(() => {
-            if (gameActive) {
-              if (currentWave >= cfg.waveCount) { endStage02(totalDamage, false, null); }
-              else { startWave(); }
-            }
-          }, cfg.waveIntervalMs);
-        };
-      }
-    }, 500);
+  function onWolfReach(): void {
+    // ランダムに生存している従者1体がロスト
+    const alive = state.aliveServants;
+    if (alive.length > 0) {
+      const victim = alive[Math.floor(Math.random() * alive.length)];
+      sacrificeServant(victim.id);
+      playSFX('sacrifice');
+      flashDamage();
+      changeHp(-20);
+      updateHpDisplay();
+      if (state.hp <= 0) { showGameOver(container); return; }
+      endStage02(
+        `逃げ遅れた。オオカミが${victim.name}に喰いついた。${victim.name}はロストした。HP -20`,
+        'fail', null, 20, 0,
+      );
+    } else {
+      // 従者なし → HPダメージのみ
+      changeHp(-30);
+      updateHpDisplay();
+      flashDamage();
+      if (state.hp <= 0) { showGameOver(container); return; }
+      endStage02('逃げ遅れた。オオカミに噛みつかれた。HP -30', 'fail', null, 30, 0);
+    }
   }
 
-  startWave();
+  function onEscapeSuccess(gold: number): void {
+    addGold(gold);
+    playSFX('reveal');
+    endStage02(
+      `素早く逃げ切った。金貨${gold}枚を手に入れた。`,
+      'success', null, 0, gold,
+    );
+  }
 
-  async function endStage02(dmg: number, sac: boolean, servant: TarotServant | null): Promise<void> {
+  function onEscapeFail(gold: number): void {
+    // ギリギリで逃げようとして噛まれた → HP-10、金貨半減
+    const halfGold = Math.floor(gold / 2);
+    addGold(halfGold);
+    changeHp(-10);
+    updateHpDisplay();
+    flashDamage();
+    if (state.hp <= 0) { showGameOver(container); return; }
+    endStage02(
+      `逃げるのが遅かった。爪に引っかかれた。金貨${halfGold}枚を手に入れた。HP -10`,
+      'fail', null, 10, halfGold,
+    );
+  }
+
+  async function endStage02(
+    msg: string,
+    outcome: 'success' | 'sacrifice' | 'fail',
+    servant: TarotServant | null,
+    dmg: number,
+    gold: number,
+  ): Promise<void> {
     const resultEl = document.getElementById('stage-result')!;
     resultEl.style.display = 'block';
-    const msg = sac && servant
-      ? `${servant.name}がオオカミを引きつけた。あなたは安全に脱出した。`
-      : dmg === 0 ? '完璧なタイミング。オオカミを退けた。'
-      : `傷を負いながらもオオカミを退けた。HP -${dmg}`;
-
     await typewriter(resultEl, msg, 40);
     recordStageResult({
       stageId: 2, stageName: stageData.name,
-      outcome: sac ? 'sacrifice' : misses >= cfg.allowedMisses ? 'fail' : 'success',
+      outcome,
       sacrificedServantName: servant?.name,
       hpDelta: -dmg,
+      choice: gold > 0 ? `金貨+${gold}` : undefined,
     });
-
     await sleep(800);
     addNextButton(container, resultEl);
   }

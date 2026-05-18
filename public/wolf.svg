@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" fill="none">
+  <!-- Background glow -->
+  <ellipse cx="160" cy="200" rx="90" ry="18" fill="rgba(120,0,0,0.35)"/>
+
+  <!-- Body -->
+  <ellipse cx="155" cy="155" rx="68" ry="42" fill="#1a0a0a" transform="rotate(-10 155 155)"/>
+
+  <!-- Neck -->
+  <path d="M120 130 Q130 108 148 118 Q138 128 125 140Z" fill="#1a0a0a"/>
+
+  <!-- Head -->
+  <ellipse cx="148" cy="108" rx="32" ry="28" fill="#1a0a0a" transform="rotate(-15 148 108)"/>
+
+  <!-- Snout -->
+  <path d="M120 112 Q112 120 118 130 Q128 128 134 118Z" fill="#1a0a0a"/>
+  <ellipse cx="116" cy="124" rx="6" ry="4" fill="#2a0808"/>
+
+  <!-- Ears -->
+  <polygon points="140,84 130,60 155,78" fill="#1a0a0a"/>
+  <polygon points="135,82 127,63 148,77" fill="#3a1010"/>
+  <polygon points="163,80 168,55 178,76" fill="#1a0a0a"/>
+  <polygon points="165,79 169,58 177,75" fill="#3a1010"/>
+
+  <!-- Eyes — red glow -->
+  <ellipse cx="138" cy="104" rx="5" ry="4" fill="#8b0000"/>
+  <ellipse cx="138" cy="104" rx="3" ry="2.5" fill="#ef4444"/>
+  <ellipse cx="138" cy="104" rx="1.5" ry="1.5" fill="#fca5a5"/>
+  <ellipse cx="158" cy="101" rx="5" ry="4" fill="#8b0000"/>
+  <ellipse cx="158" cy="101" rx="3" ry="2.5" fill="#ef4444"/>
+  <ellipse cx="158" cy="101" rx="1.5" ry="1.5" fill="#fca5a5"/>
+
+  <!-- Mouth / fangs -->
+  <path d="M118 126 Q116 132 122 133" stroke="#8b0000" stroke-width="1.5" fill="none"/>
+  <polygon points="120,130 117,138 123,135" fill="#e5e7eb" opacity="0.9"/>
+  <polygon points="124,131 121,139 127,137" fill="#e5e7eb" opacity="0.7"/>
+
+  <!-- Front legs -->
+  <path d="M118 165 Q112 185 108 200 Q116 202 120 200 Q122 185 128 168Z" fill="#1a0a0a"/>
+  <path d="M138 168 Q134 188 132 202 Q140 204 144 202 Q144 188 148 170Z" fill="#1a0a0a"/>
+
+  <!-- Hind legs -->
+  <path d="M178 165 Q185 182 190 198 Q198 196 196 192 Q190 178 188 162Z" fill="#1a0a0a"/>
+  <path d="M196 160 Q205 175 210 190 Q218 188 214 182 Q208 168 204 155Z" fill="#1a0a0a"/>
+
+  <!-- Tail -->
+  <path d="M215 148 Q240 135 248 120 Q242 115 236 122 Q228 132 210 145Z" fill="#1a0a0a"/>
+  <path d="M244 118 Q254 108 252 96 Q246 94 244 102 Q242 112 238 120Z" fill="#2a1010"/>
+
+  <!-- Fur texture lines -->
+  <path d="M148 90 Q152 84 158 87" stroke="#2a1010" stroke-width="1.2" fill="none"/>
+  <path d="M144 95 Q148 89 155 92" stroke="#2a1010" stroke-width="1" fill="none"/>
+  <path d="M130 115 Q136 110 142 113" stroke="#2a1010" stroke-width="1" fill="none"/>
+
+  <!-- Red aura/glow overlay -->
+  <ellipse cx="148" cy="120" rx="55" ry="45" fill="rgba(139,0,0,0.08)"/>
+</svg>
