@@ -3131,4 +3131,1164 @@ body {
   text-transform: uppercase;
 }
 
+/* =============================================
+   BUCCA v3 — 診断シーン
+============================================= */
+.scene-diagnosis {
+  background: radial-gradient(ellipse at 30% 20%, #1a0a2e 0%, #050509 60%);
+}
+.diagnosis-wrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: var(--spacing-xl) var(--spacing-lg);
+}
+.diagnosis-header {
+  width: 100%;
+  max-width: 640px;
+  margin-bottom: var(--spacing-xl);
+  text-align: center;
+}
+.diagnosis-progress-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  margin: var(--spacing-md) 0 var(--spacing-sm);
+  overflow: hidden;
+}
+.diagnosis-progress-fill {
+  height: 100%;
+  background: var(--color-gold);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.diagnosis-progress-text {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+}
+.diagnosis-card {
+  width: 100%;
+  max-width: 640px;
+  background: rgba(10,10,22,0.85);
+  border: var(--border-gold);
+  border-radius: 12px;
+  padding: var(--spacing-xl);
+  backdrop-filter: blur(12px);
+}
+.diagnosis-question {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  line-height: 1.8;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xl);
+  min-height: 3em;
+}
+.diagnosis-answers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+.diag-answer-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(201,162,39,0.2);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+.diag-answer-btn:hover {
+  background: rgba(201,162,39,0.08);
+  border-color: rgba(201,162,39,0.5);
+  color: var(--text-primary);
+}
+.diag-answer-btn.selected {
+  background: rgba(201,162,39,0.15);
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+}
+.diag-answer-num {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(201,162,39,0.12);
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  color: var(--color-gold);
+  flex-shrink: 0;
+}
+.diag-answer-text { flex: 1; }
+.diagnosis-analyzing {
+  text-align: center;
+  padding: var(--spacing-xl) 0;
+}
+.analyzing-text {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--color-gold);
+  letter-spacing: 0.05em;
+}
 
+/* =============================================
+   BUCCA v3 — 従者公開シーン
+============================================= */
+.scene-servant-reveal {
+  background: radial-gradient(ellipse at 70% 30%, #12052e 0%, #050509 65%);
+}
+.servant-reveal-wrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: var(--spacing-xl) var(--spacing-lg);
+}
+.servant-reveal-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  color: var(--color-gold);
+  letter-spacing: 0.1em;
+  margin-bottom: var(--spacing-sm);
+}
+.servant-reveal-subtitle {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: var(--spacing-xl);
+  letter-spacing: 0.08em;
+}
+.servant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--spacing-md);
+  width: 100%;
+  max-width: 900px;
+  margin-bottom: var(--spacing-xl);
+}
+.servant-card {
+  background: rgba(10,10,22,0.9);
+  border: var(--border-gold);
+  border-radius: 10px;
+  padding: var(--spacing-md);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.servant-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-gold);
+}
+.servant-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+.servant-symbol {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--color-gold);
+  min-width: 2rem;
+  text-align: center;
+}
+.servant-name {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+.servant-english {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+}
+.servant-skill-block {
+  margin: var(--spacing-sm) 0;
+  padding: var(--spacing-sm);
+  background: rgba(201,162,39,0.06);
+  border-radius: 6px;
+}
+.servant-skill-name {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--color-gold);
+  margin-right: var(--spacing-xs);
+}
+.servant-skill-desc {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.servant-affinity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: var(--spacing-sm) 0;
+}
+.servant-dim-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 0.7rem;
+}
+.servant-dim-label {
+  width: 14px;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+}
+.servant-dim-track {
+  flex: 1;
+  height: 4px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.servant-dim-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.8s ease;
+}
+.servant-resonance {
+  text-align: right;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--color-gold);
+  margin-top: var(--spacing-xs);
+}
+.servant-reveal-footer {
+  margin-top: var(--spacing-lg);
+}
+
+/* =============================================
+   BUCCA v3 — ステージシーン
+============================================= */
+.scene-stage {
+  background: radial-gradient(ellipse at 50% 10%, #0e0a00 0%, #050509 70%);
+}
+.stage-header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: rgba(5,5,9,0.8);
+  border-bottom: var(--border-gold);
+  backdrop-filter: blur(8px);
+  flex-wrap: wrap;
+}
+.stage-num {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  color: var(--color-gold);
+  letter-spacing: 0.2em;
+}
+.stage-name {
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  flex: 1;
+}
+.stage-hp-wrap { margin-left: auto; }
+.stage-hp-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+.stage-hp-label {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  color: var(--color-gold);
+  letter-spacing: 0.1em;
+}
+.stage-hp-track {
+  width: 120px;
+  height: 6px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.stage-hp-fill {
+  height: 100%;
+  background: linear-gradient(to right, #10b981, #34d399);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+.stage-hp-value {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.stage-body {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  min-height: calc(100vh - 60px);
+  gap: var(--spacing-xl);
+}
+.stage-narrative {
+  max-width: 640px;
+  width: 100%;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  line-height: 1.9;
+  color: var(--text-secondary);
+  text-align: center;
+}
+.stage-mechanic {
+  max-width: 640px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+.stage-result {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  text-align: center;
+  padding: var(--spacing-md);
+  border-top: var(--border-gold);
+  margin-top: var(--spacing-md);
+  width: 100%;
+}
+/* レバーボタン */
+.btn-lever {
+  min-width: 120px;
+  padding: var(--spacing-md) var(--spacing-xl);
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  color: var(--color-gold);
+  background: rgba(201,162,39,0.08);
+  border: 2px solid var(--color-gold);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+.btn-lever:hover, .btn-lever:active {
+  background: rgba(201,162,39,0.2);
+  box-shadow: 0 0 16px rgba(201,162,39,0.3);
+}
+/* 反撃ボタン */
+.btn-attack {
+  padding: var(--spacing-sm) var(--spacing-xl);
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: #ef4444;
+  background: rgba(239,68,68,0.08);
+  border: 2px solid #ef4444;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.btn-attack:hover:not(:disabled) {
+  background: rgba(239,68,68,0.2);
+  box-shadow: 0 0 16px rgba(239,68,68,0.3);
+}
+.btn-attack:disabled { opacity: 0.35; cursor: not-allowed; }
+/* 進捗 */
+.progress-bar-track {
+  width: 100%;
+  max-width: 400px;
+  height: 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--color-gold);
+  border-radius: 4px;
+  transition: width 0.1s linear;
+}
+/* リズムインジケーター */
+.rhythm-indicator {
+  font-size: 1.5rem;
+  color: #555;
+  transition: color 0.1s ease;
+}
+/* ボスHPバー */
+.boss-hp-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  max-width: 400px;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.boss-hp-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.boss-hp-fill {
+  height: 100%;
+  background: #ef4444;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+.battle-status {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--text-primary);
+  text-align: center;
+  min-height: 1.5em;
+}
+.battle-buttons {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+/* タイマー */
+.countdown-ring {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 3px solid var(--color-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--color-gold);
+}
+/* 選択肢グリッド */
+.choice-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  width: 100%;
+  max-width: 400px;
+}
+.choice-btn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(201,162,39,0.2);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.5;
+  transition: all var(--transition-fast);
+}
+.choice-btn:hover {
+  background: rgba(201,162,39,0.08);
+  border-color: rgba(201,162,39,0.5);
+  color: var(--text-primary);
+}
+/* アイテムショップ */
+.item-shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--spacing-md);
+  width: 100%;
+  max-width: 560px;
+}
+.item-card {
+  background: rgba(10,10,22,0.85);
+  border: var(--border-gold);
+  border-radius: 8px;
+  padding: var(--spacing-md);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.item-card:hover { background: rgba(201,162,39,0.08); }
+.item-card-name {
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  color: var(--color-gold);
+  margin-bottom: var(--spacing-xs);
+}
+.item-card-desc {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+/* 従者チップ（ステージUI内） */
+.servant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(201,162,39,0.06);
+  border: 1px solid rgba(201,162,39,0.25);
+  border-radius: 20px;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.servant-chip:hover, .servant-chip.selectable:hover {
+  background: rgba(201,162,39,0.15);
+  border-color: var(--color-gold);
+  color: var(--text-primary);
+}
+.chip-name { color: var(--text-primary); }
+.chip-skill { color: var(--color-gold); font-size: 0.72rem; }
+.chip-symbol { font-family: var(--font-display); color: var(--color-gold); }
+/* 従者選択モーダル */
+.servant-select-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+.servant-select-modal {
+  background: var(--color-surface);
+  border: var(--border-gold-bright);
+  border-radius: 12px;
+  padding: var(--spacing-xl);
+  max-width: 420px;
+  width: 90%;
+}
+.servant-modal-title {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--color-gold);
+  margin-bottom: var(--spacing-sm);
+  text-align: center;
+}
+.servant-modal-desc {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+}
+.servant-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+.btn-cancel {
+  width: 100%;
+  padding: var(--spacing-sm);
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.btn-cancel:hover { border-color: rgba(255,255,255,0.35); color: var(--text-secondary); }
+.servant-hint {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--color-gold);
+}
+/* ゲームオーバー */
+.scene-gameover {
+  background: radial-gradient(ellipse at 50% 50%, #1a0000 0%, #050509 70%);
+}
+.gameover-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--spacing-xl);
+  text-align: center;
+  gap: var(--spacing-lg);
+}
+.gameover-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  color: #ef4444;
+  letter-spacing: 0.15em;
+}
+.gameover-message {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--text-secondary);
+  max-width: 480px;
+  line-height: 1.8;
+}
+
+/* =============================================
+   BUCCA v3 — フィナーレシーン
+============================================= */
+.finale-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-xl) var(--spacing-lg) var(--spacing-2xl);
+  gap: var(--spacing-xl);
+}
+.finale-header { text-align: center; }
+.scene-label {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--spacing-sm);
+}
+.finale-main-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 3.5vw, 2.2rem);
+  color: var(--color-gold);
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 30px rgba(201,162,39,0.4);
+}
+/* エンディングカード */
+.ending-card {
+  background: rgba(10,10,22,0.9);
+  border: var(--border-gold-bright);
+  border-radius: 12px;
+  padding: var(--spacing-xl);
+  max-width: 640px;
+  width: 100%;
+  text-align: center;
+  box-shadow: var(--shadow-gold);
+}
+.ending-kind-badge {
+  display: inline-block;
+  padding: 4px 16px;
+  border-radius: 20px;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  color: #fff;
+  margin-bottom: var(--spacing-md);
+}
+.ending-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+  letter-spacing: 0.08em;
+}
+.ending-message {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  line-height: 1.9;
+  color: var(--text-secondary);
+}
+/* レポートセクション（v3追加分） */
+.report-bigfive-primary { border-left-color: #8b5cf6; }
+.bf-bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 0.8rem;
+}
+.bf-bar-label {
+  width: 120px;
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.bf-bar-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bf-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1s ease;
+}
+.bf-bar-pct {
+  width: 40px;
+  text-align: right;
+  font-family: var(--font-sans);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+/* 従者チップ結果表示 */
+.servant-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+.servant-chip-result {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 6px 14px;
+  background: rgba(201,162,39,0.07);
+  border: 1px solid rgba(201,162,39,0.25);
+  border-radius: 20px;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.servant-chip-result.sacrificed {
+  background: rgba(155,28,28,0.1);
+  border-color: rgba(155,28,28,0.35);
+  color: var(--text-muted);
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.servant-section-head {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: var(--spacing-sm) 0 var(--spacing-xs);
+  letter-spacing: 0.06em;
+}
+.servant-all-gone { color: #9b1c1c; }
+.sacrificed-head { color: rgba(155,28,28,0.8); }
+/* ステージログ */
+.stage-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: var(--spacing-sm);
+}
+.stage-log-item {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: baseline;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.log-stage {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  color: var(--color-gold);
+  min-width: 48px;
+  flex-shrink: 0;
+}
+.log-note { color: var(--text-secondary); }
+.stage-log-item.log-sacrifice .log-note { color: #f59e0b; }
+.stage-log-item.log-fail .log-note { color: #ef4444; }
+/* フィナーレフッター */
+.finale-footer { text-align: center; }
+.finale-closing {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: var(--spacing-lg);
+  letter-spacing: 0.05em;
+}
+.btn-restart {
+  min-width: 220px;
+  letter-spacing: 0.08em;
+}
+.report-text {
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  margin-top: var(--spacing-sm);
+}
+.report-note {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* =============================================
+   ST-01 茨の泉 — 長押し耐久
+============================================= */
+.thorns-scene {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 420px;
+  height: 100px;
+  overflow: hidden;
+  margin: 0 auto var(--spacing-md);
+  border-radius: 8px;
+  background: rgba(10,5,0,0.6);
+  border: 1px solid rgba(100,40,0,0.4);
+  position: relative;
+}
+.thorns-side {
+  width: 120px;
+  height: 100%;
+  background: repeating-linear-gradient(
+    45deg,
+    #2d1000 0px, #2d1000 6px,
+    #6b2200 6px, #6b2200 10px,
+    #3a1400 10px, #3a1400 16px
+  );
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: transform 0.18s linear;
+}
+.thorns-left  { transform: translateX(-100%); }
+.thorns-right { transform: translateX(100%); }
+.player-boat {
+  font-size: 2rem;
+  z-index: 2;
+  padding: 0 var(--spacing-md);
+  transition: transform 0.1s ease;
+  flex-shrink: 0;
+}
+.player-boat.shake { animation: boatShake 0.3s ease; }
+@keyframes boatShake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25%  { transform: translateX(-5px) rotate(-8deg); }
+  75%  { transform: translateX(5px)  rotate(8deg);  }
+}
+.thorn-progress-wrap {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto var(--spacing-sm);
+}
+.thorn-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.thorn-progress-bar {
+  height: 10px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.thorn-progress-fill {
+  height: 100%;
+  background: linear-gradient(to right, #10b981, #34d399);
+  border-radius: 5px;
+  transition: width 0.1s linear;
+}
+/* 長押しボタン */
+.btn-hold {
+  font-size: 1.1rem;
+  padding: var(--spacing-md) var(--spacing-2xl);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.btn-hold.active {
+  background: rgba(201,162,39,0.25) !important;
+  border-color: var(--color-gold) !important;
+  box-shadow: 0 0 24px rgba(201,162,39,0.5) !important;
+  transform: scale(0.97);
+}
+/* ダメージフラッシュ */
+.damage-flash { animation: damageFlashAnim 0.22s ease; }
+@keyframes damageFlashAnim {
+  0%, 100% { filter: none; }
+  50%       { filter: brightness(1.8) sepia(1) saturate(6) hue-rotate(300deg); }
+}
+
+/* =============================================
+   ST-02 狼 — ゲージタイミング
+============================================= */
+.wolf-gauge-scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  width: 100%;
+  max-width: 480px;
+}
+.wolf-gauge-wrap { width: 100%; }
+.wolf-gauge-track {
+  position: relative;
+  height: 28px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.wolf-gauge-zone {
+  position: absolute;
+  top: 0; height: 100%;
+  background: rgba(16,185,129,0.25);
+  border-left:  2px solid #10b981;
+  border-right: 2px solid #10b981;
+  z-index: 1;
+}
+.wolf-gauge-fill {
+  position: absolute;
+  left: 0; top: 0; height: 100%;
+  background: linear-gradient(to right, #6d28d9, #ef4444);
+  border-radius: 14px;
+  z-index: 2;
+}
+.wolf-gauge-marker {
+  position: absolute;
+  top: -3px;
+  width: 4px; height: 34px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 2px;
+  z-index: 3;
+  margin-left: -2px;
+}
+.wolf-gauge-labels {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.wolf-zone-label { color: #10b981; font-weight: 600; }
+.wolf-sprite-large {
+  font-size: 3.5rem;
+  line-height: 1;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+.wolf-sprite-large.wolf-hit  { transform: translateX(40px); opacity: 0.4; }
+.wolf-sprite-large.wolf-bite { animation: wolfBite 0.4s ease; }
+@keyframes wolfBite {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.4) translateX(-10px); }
+  100% { transform: scale(1); }
+}
+.wolf-round-info {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+}
+.btn-wolf-attack {
+  padding: var(--spacing-md) 3rem;
+  font-size: 1.1rem;
+  letter-spacing: 0.06em;
+}
+
+/* =============================================
+   ST-07 番人 — 収縮リング
+============================================= */
+.ring-arena {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin: var(--spacing-md) auto;
+}
+.ring-target {
+  position: absolute;
+  top: 60px; left: 60px;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  border: 2px solid rgba(201,162,39,0.35);
+  pointer-events: none;
+}
+.ring-shrink {
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid #ef4444;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+.btn-ring-hit {
+  position: absolute;
+  top: 60px; left: 60px;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  border: 3px solid rgba(201,162,39,0.5);
+  background: rgba(201,162,39,0.06);
+  cursor: pointer;
+  z-index: 2;
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  color: rgba(201,162,39,0.7);
+  letter-spacing: 0.04em;
+  transition: background 0.1s, border-color 0.1s, box-shadow 0.1s;
+}
+.btn-ring-hit:not(:disabled):hover {
+  background: rgba(201,162,39,0.18);
+  border-color: var(--color-gold);
+  box-shadow: 0 0 12px rgba(201,162,39,0.35);
+}
+.btn-ring-hit:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+
+
+/* =============================================
+   v3.0 New Styles
+============================================= */
+.hp-bar-container{flex:1;height:8px;background:rgba(155,28,28,0.3);border-radius:4px;overflow:hidden;min-width:80px}
+.hp-bar-fill{height:100%;background:linear-gradient(to right,#9b1c1c,#ef4444);border-radius:4px;transition:width 0.4s ease}
+.progress-bar-container{width:100%;height:12px;background:rgba(201,162,39,0.15);border-radius:6px;overflow:hidden;margin-bottom:0.5rem}
+.progress-bar-fill{height:100%;background:linear-gradient(to right,#8a6e1a,#C9A227);border-radius:6px;transition:width 0.2s ease}
+.stage-header{display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1.25rem;background:rgba(5,5,9,0.85);border-bottom:1px solid rgba(201,162,39,0.2);position:sticky;top:0;z-index:50}
+.stage-header-left{display:flex;align-items:center;gap:0.75rem}
+.stage-area{font-size:0.7rem;color:var(--text-muted);font-family:var(--font-sans)}
+.stage-hp-wrap{display:flex;align-items:center;gap:0.5rem;min-width:160px}
+.stage-hp-label{font-size:0.75rem;color:var(--text-secondary);font-family:var(--font-sans)}
+.stage-hp-value{font-size:0.75rem;color:var(--text-primary);white-space:nowrap}
+.minigame-overlay{position:relative;z-index:10;display:flex;flex-direction:column;align-items:center;gap:1rem;padding:1.5rem;min-height:300px}
+.thorn-scene{display:flex;align-items:center;justify-content:center;width:100%;min-height:180px;position:relative;overflow:hidden}
+.thorn-side{width:120px;min-height:180px;flex-shrink:0}
+.thorn-left{transform:translateX(-100%);transition:transform 0.2s linear;border-right:3px solid #ef4444}
+.thorn-right{transform:translateX(100%);transition:transform 0.2s linear;border-left:3px solid #ef4444}
+.thorn-center{flex:1;display:flex;flex-direction:column;align-items:center;gap:0.5rem;padding:1rem}
+.endurance-label{font-size:0.85rem;color:var(--color-gold)}
+.btn-hold-large{padding:1.2rem 2.5rem;font-size:1.2rem;font-family:var(--font-serif);background:rgba(201,162,39,0.1);border:2px solid rgba(201,162,39,0.5);color:var(--color-gold);border-radius:4px;cursor:pointer;touch-action:none;user-select:none;transition:all 0.15s ease;letter-spacing:0.1em}
+.btn-hold-large:active,.btn-hold-large.active{background:rgba(201,162,39,0.3);border-color:var(--color-gold);box-shadow:0 0 20px rgba(201,162,39,0.4);transform:scale(0.97)}
+.timing-arena-wrap{width:100%;display:flex;flex-direction:column;align-items:center;gap:0.75rem}
+.timing-info-row{display:flex;justify-content:space-between;width:100%;max-width:500px;font-size:0.85rem;color:var(--text-secondary)}
+.timing-arena{position:relative;width:100%;max-width:500px;height:80px;background:rgba(10,10,20,0.8);border:1px solid rgba(201,162,39,0.2);border-radius:6px;overflow:hidden}
+.hit-zone{position:absolute;left:40%;width:18%;height:100%;background:rgba(16,185,129,0.1);border-left:2px solid rgba(16,185,129,0.4);border-right:2px solid rgba(16,185,129,0.4);transition:background 0.1s ease}
+.hit-zone.hit-zone-active{background:rgba(16,185,129,0.4);box-shadow:0 0 12px rgba(16,185,129,0.6)}
+.threat-element{position:absolute;top:50%;transform:translateY(-50%);font-size:2.5rem;line-height:1}
+.timing-status{font-size:0.9rem;color:var(--text-secondary);min-height:1.4em}
+.btn-timing-action{padding:0.8rem 2rem;font-size:1rem;font-family:var(--font-serif);background:rgba(109,40,217,0.15);border:1px solid rgba(109,40,217,0.5);color:#a78bfa;border-radius:4px;cursor:pointer;transition:all 0.2s ease;letter-spacing:0.08em}
+.btn-timing-action:hover:not(:disabled){background:rgba(109,40,217,0.3)}
+.btn-timing-action:disabled{opacity:0.4;cursor:not-allowed}
+.battle-split-area{display:flex;gap:1rem;width:100%;max-width:400px}
+.battle-btn-left,.battle-btn-right{flex:1;height:100px;font-size:2rem;font-weight:bold;cursor:pointer;border-radius:6px;transition:all 0.1s ease;user-select:none;touch-action:manipulation}
+.battle-btn-left{background:rgba(109,40,217,0.2);border:2px solid rgba(109,40,217,0.5);color:#a78bfa}
+.battle-btn-right{background:rgba(201,162,39,0.2);border:2px solid rgba(201,162,39,0.5);color:var(--color-gold)}
+.battle-btn-left:active,.battle-btn-right:active{transform:scale(0.94)}
+.servant-sacrifice-offer{margin-top:1rem;border:1px solid rgba(239,68,68,0.3);background:rgba(10,5,9,0.9);border-radius:8px;padding:1.25rem}
+.sacrifice-offer-inner{display:flex;flex-direction:column;align-items:center;gap:0.75rem}
+.sacrifice-offer-title{font-size:1rem;color:var(--color-crimson-bright);letter-spacing:0.1em}
+.sacrifice-servant-card{display:flex;align-items:center;gap:0.75rem;padding:0.5rem 1rem;background:rgba(201,162,39,0.08);border:1px solid rgba(201,162,39,0.2);border-radius:4px}
+.sacrifice-symbol{font-size:1.2rem;color:var(--color-gold)}
+.sacrifice-name{font-size:1rem;color:var(--text-primary)}
+.sacrifice-skill{font-size:0.8rem;color:var(--text-secondary);text-align:center}
+.sacrifice-effect{font-size:0.85rem;color:#10b981;text-align:center;font-style:italic}
+.sacrifice-btns{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center}
+.sacrifice-quick-btn{margin-top:0.5rem;display:flex;justify-content:center}
+.debug-panel{position:fixed;bottom:1rem;right:1rem;z-index:9999;background:rgba(5,5,9,0.95);border:1px solid rgba(201,162,39,0.4);border-radius:8px;min-width:220px;max-width:320px;font-family:var(--font-sans);font-size:0.8rem;box-shadow:0 4px 20px rgba(0,0,0,0.8)}
+.debug-panel-header{display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0.75rem;border-bottom:1px solid rgba(201,162,39,0.2);color:var(--color-gold);font-size:0.85rem}
+.debug-toggle{background:none;border:none;color:var(--color-gold);cursor:pointer;font-size:0.75rem}
+.debug-panel-body{padding:0.75rem;display:flex;flex-direction:column;gap:0.5rem}
+.debug-btn{padding:0.35rem 0.6rem;background:rgba(201,162,39,0.1);border:1px solid rgba(201,162,39,0.3);color:var(--color-gold);cursor:pointer;border-radius:3px;font-size:0.75rem;text-align:left;transition:background 0.2s}
+.debug-btn:hover{background:rgba(201,162,39,0.2)}
+.debug-jump-row{display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap}
+.debug-label{color:var(--text-secondary);font-size:0.75rem;white-space:nowrap}
+.debug-select{background:rgba(10,10,20,0.9);border:1px solid rgba(201,162,39,0.3);color:var(--text-primary);font-size:0.75rem;padding:0.2rem;flex:1;min-width:0}
+.debug-quick-btns{display:flex;gap:0.5rem;margin-bottom:0.75rem;z-index:10;position:relative}
+.debug-info{color:var(--text-muted);font-size:0.7rem;line-height:1.5;margin-top:0.25rem}
+.ending-badge{display:inline-block;padding:0.2rem 0.75rem;border-radius:3px;font-size:0.75rem;font-family:var(--font-display);letter-spacing:0.12em;font-weight:700;color:#050509;margin-bottom:0.5rem}
+.boss-hp-bar{display:flex;align-items:center;gap:0.5rem;width:100%;max-width:500px;padding:0.5rem;background:rgba(5,5,9,0.8);border:1px solid rgba(155,28,28,0.4);border-radius:4px;margin-bottom:0.5rem}
+.boss-hp-label{font-size:0.8rem;color:var(--text-secondary);white-space:nowrap}
+.boss-hp-fill{transition:width 0.5s ease}
+.boss-status{font-size:0.9rem;color:var(--text-secondary);min-height:1.4em;text-align:center}
+.boss-action-row{display:flex;gap:0.75rem;flex-wrap:wrap;justify-content:center}
+.boss-click-counter{font-size:0.9rem;color:var(--text-secondary)}
+.player-hp-mini{font-size:0.85rem;color:var(--text-secondary)}
+.stage-next-btn{margin-top:1rem;display:block}
+.trolley-fork-label{font-size:1.1rem;color:var(--color-gold);letter-spacing:0.1em;margin-bottom:0.5rem}
+.trolley-path-btns{display:flex;gap:1rem;justify-content:center;margin-top:0.5rem}
+.betrayal-overlay{padding:1rem;border:1px solid rgba(239,68,68,0.3);border-radius:4px;background:rgba(30,5,5,0.9);text-align:center;max-width:400px}
+.ring-arena{position:relative;width:200px;height:200px;margin:1rem auto}
+.ring-target{position:absolute;top:60px;left:60px;width:80px;height:80px;border-radius:50%;background:rgba(201,162,39,0.08);border:2px solid rgba(201,162,39,0.4);z-index:1}
+.ring-shrink{position:absolute;border-radius:50%;border:3px solid #ef4444;pointer-events:none;box-sizing:border-box;z-index:2}
+.battle-action-row{display:flex;gap:0.75rem;flex-wrap:wrap;justify-content:center;margin-top:0.5rem}
+.choice-grid-2x2{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;max-width:400px;width:100%}
+.sel-danger{border-color:rgba(239,68,68,0.4) !important;color:#f87171 !important}
+.selection-timer-ring{width:64px;height:64px;border-radius:50%;border:3px solid rgba(201,162,39,0.4);display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:var(--color-gold);font-family:var(--font-display)}
+.selection-prompt{font-size:0.95rem;color:var(--text-secondary);text-align:center;margin:0.5rem 0}
+.selection-mushroom-grid{display:flex;flex-direction:column;gap:0.75rem;align-items:center;width:100%;max-width:380px}
+.choice-btn-large{display:flex;flex-direction:column;align-items:center;gap:0.3rem;padding:1rem;width:100%}
+.choice-icon{font-size:2rem}
+.choice-label{font-size:1rem;font-weight:500}
+.choice-desc{font-size:0.75rem;color:var(--text-muted)}
+.choice-btn-neutral{background:rgba(107,114,128,0.15) !important;border-color:rgba(107,114,128,0.4) !important;color:var(--text-secondary) !important}
+.servant-trait{font-size:0.78rem;color:var(--text-muted);margin-bottom:0.5rem;font-style:italic}
+.damage-flash{animation:damageFlashAnim 0.22s ease}
+@keyframes damageFlashAnim{0%{filter:brightness(1)}40%{filter:brightness(1.8) saturate(2) hue-rotate(-20deg)}100%{filter:brightness(1)}}
+.scene-gameover{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.gameover-content{position:relative;z-index:10;text-align:center;padding:2rem}
+.gameover-title{font-size:2rem;color:var(--color-crimson-bright);margin-bottom:1.5rem;letter-spacing:0.15em;font-family:var(--font-display)}
+.gameover-message{font-size:1rem;color:var(--text-secondary);min-height:2em}
+.stage-body{position:relative;z-index:10;padding:1.5rem 1.25rem;display:flex;flex-direction:column;gap:1.25rem}
+.stage-narrative{font-size:0.95rem;line-height:1.8;color:var(--text-secondary);min-height:2em}
+.stage-mechanic{display:flex;flex-direction:column;align-items:center;gap:0.75rem}
+.choice-grid{display:flex;flex-direction:column;gap:0.75rem;width:100%;max-width:380px}
+.servant-hint-text{font-size:0.85rem;color:var(--text-secondary);text-align:center;padding:0.5rem;border:1px solid rgba(201,162,39,0.2);border-radius:4px;background:rgba(201,162,39,0.05)}
+.report-section{margin-bottom:2rem}
+.report-section-label{font-size:0.7rem;letter-spacing:0.2em;color:var(--text-muted);text-transform:uppercase;border-bottom:1px solid rgba(201,162,39,0.15);padding-bottom:0.4rem;margin-bottom:1rem;font-family:var(--font-sans)}
+.report-text{font-size:0.85rem;color:var(--text-secondary);line-height:1.7}
+.report-note{font-size:0.78rem;color:var(--text-muted);margin-top:0.5rem}
+.stage-log-list{display:flex;flex-direction:column;gap:0.4rem}
+.stage-log-item{display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;font-size:0.82rem;padding:0.4rem 0.6rem;background:rgba(10,10,20,0.5);border-radius:3px;border-left:2px solid rgba(201,162,39,0.2)}
+.stage-log-item.log-sacrifice{border-left-color:rgba(239,68,68,0.5)}
+.stage-log-item.log-fail{border-left-color:rgba(155,28,28,0.5)}
+.log-stage{color:var(--color-gold);font-family:var(--font-display);font-size:0.75rem}
+.log-name{color:var(--text-primary);font-size:0.8rem}
+.log-outcome{color:var(--text-secondary);font-size:0.78rem}
+.log-sacrifice-name{color:#f87171;font-size:0.75rem}
+.log-hp{font-size:0.75rem;margin-left:auto}
+.log-hp.hp-plus{color:#10b981}
+.log-hp.hp-minus{color:#ef4444}
+.servant-chip-result{display:flex;align-items:center;gap:0.4rem;padding:0.35rem 0.6rem;background:rgba(201,162,39,0.08);border:1px solid rgba(201,162,39,0.2);border-radius:4px;font-size:0.82rem}
+.servant-chip-result.sacrificed{opacity:0.45;background:rgba(155,28,28,0.08);border-color:rgba(155,28,28,0.2)}
+.servant-chip-grid{display:flex;flex-wrap:wrap;gap:0.5rem;margin:0.5rem 0}
+.servant-section-head{font-size:0.82rem;color:var(--text-secondary);margin-bottom:0.4rem}
+.servant-section-head.sacrificed-head{color:#f87171}
+.servant-section-head.servant-all-gone{color:var(--text-muted);font-style:italic}
+.bigfive-bars{display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1rem}
+.bf-bar-row{display:flex;align-items:center;gap:0.5rem}
+.bf-bar-label{font-size:0.78rem;color:var(--text-secondary);width:130px;flex-shrink:0;font-family:var(--font-sans)}
+.bf-bar-track{flex:1;height:10px;background:rgba(255,255,255,0.06);border-radius:5px;overflow:hidden}
+.bf-bar-fill{height:100%;border-radius:5px;transition:width 1s ease}
+.bf-bar-pct{font-size:0.75rem;color:var(--text-muted);width:35px;text-align:right}
+.countdown-ring{width:70px;height:70px;border-radius:50%;border:2px solid rgba(201,162,39,0.4);display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:var(--color-gold);font-family:var(--font-display)}
+.battle-section{width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;gap:0.5rem;padding:1rem;border:1px solid rgba(201,162,39,0.15);border-radius:6px;background:rgba(5,5,9,0.5)}
+.servant-select-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem}
+.servant-select-modal{background:var(--color-dark);border:1px solid rgba(201,162,39,0.4);border-radius:8px;padding:1.5rem;max-width:400px;width:100%;display:flex;flex-direction:column;gap:1rem}
+.servant-modal-title{font-size:1rem;color:var(--color-gold);letter-spacing:0.1em}
+.servant-modal-desc{font-size:0.8rem;color:var(--text-muted)}
+.servant-modal-list{display:flex;flex-direction:column;gap:0.5rem;max-height:300px;overflow-y:auto}
+.servant-chip.selectable{display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;background:rgba(201,162,39,0.06);border:1px solid rgba(201,162,39,0.2);color:var(--text-primary);cursor:pointer;border-radius:4px;text-align:left;font-family:var(--font-serif);transition:background 0.2s;width:100%}
+.servant-chip.selectable:hover{background:rgba(201,162,39,0.15)}
+.chip-symbol{color:var(--color-gold);font-size:0.9rem}
+.chip-name{flex:1}
+.chip-skill{font-size:0.75rem;color:var(--text-muted)}
+.btn-cancel{padding:0.4rem 1rem;background:transparent;border:1px solid rgba(107,114,128,0.4);color:var(--text-secondary);cursor:pointer;border-radius:3px;font-size:0.8rem;transition:background 0.2s}
+.btn-cancel:hover{background:rgba(107,114,128,0.1)}
+.item-shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;max-width:420px;width:100%}
+.item-card{padding:1rem;background:rgba(10,10,20,0.7);border:1px solid rgba(201,162,39,0.2);border-radius:6px;cursor:pointer;text-align:center;transition:all 0.2s ease;display:flex;flex-direction:column;gap:0.4rem}
+.item-card:hover{background:rgba(201,162,39,0.06);border-color:rgba(201,162,39,0.4)}
+.item-card.selected{background:rgba(201,162,39,0.12);border-color:var(--color-gold);box-shadow:0 0 10px rgba(201,162,39,0.2)}
+.item-icon{font-size:1.8rem}
+.item-name{font-size:0.9rem;color:var(--color-gold)}
+.item-desc{font-size:0.75rem;color:var(--text-muted)}
+.battle-click-label,.battle-timer-label{font-size:0.9rem;color:var(--text-secondary)}
+.battle-hint{font-size:0.8rem;color:var(--text-muted)}
+.mechanic-hint{font-size:0.88rem;color:var(--text-muted);text-align:center;font-style:italic}
