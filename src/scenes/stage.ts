@@ -2,7 +2,7 @@
 
 import {
   navigateTo, getState, resetGameState, changeHp, sacrificeServant, recordStageResult,
-  advanceStage, sleep, typewriter, createParticles, addGold,
+  advanceStage, sleep, typewriter, createParticles, addGold, acquireNextServant,
 } from '../utils/gameState';
 import { findByDimension, TAROT_SYMBOLS, type TarotServant } from '../data/tarot';
 import { STAGES } from '../data/stages';
@@ -156,70 +156,72 @@ function addNextButton(container: HTMLElement, parentEl: HTMLElement): void {
 }
 
 // ===============================
-// ST-01 茨の泉（耐久長押し）
+// ST-01 茨の湖（ボートで横断）
 // ===============================
-// 【新メカニクス】
-//   押している間  → HPが減る（茨の痛み）
-//   押していない間 → 生贄ゲージが上昇
-//   生贄ゲージ満杯 → N最低の従者が自動生贄
-//   耐久バー満杯   → 生贄なしクリア
+// 【メカニクス】
+//   船は自動で進む（基本速度）
+//   押している間  → 加速 + プレイヤーHPダメージ（茨の痛み）
+//   押していない間 → 従者HPダメージ（従者も茨に傷つく）
+//   従者HP 0      → 従者が自動生贄、ゲーム続行
+//   プレイヤーHP 0 → ゲームオーバー
+//   進行100%      → クリア
 
 async function runStage01(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[0];
-  const cfg = getLeverConfig().endurance.st01;
 
   container.innerHTML = stageLayout(1, stageData.name, stageData.area);
   createParticles(document.getElementById('stage-particles')!, 20);
 
   await sleep(300);
   await narrateText(stageData.description, 40);
-  await sleep(600);
 
-  // N最低の従者（生贄候補）
-  const targetServant = findByDimension(state.aliveServants, 'N', 'min');
+  const rowingServant = state.aliveServants[0] ?? null;
+  if (rowingServant) {
+    await sleep(500);
+    await narrateText(`${rowingServant.name}「${rowingServant.dialogue.rowing}」`, 40);
+  }
+  await sleep(400);
 
   const initHpPct = Math.max(0, Math.round((state.hp / state.maxHp) * 100));
+  const servantMaxHp = 20;
+  let servantHp = servantMaxHp;
 
   setMechanic(`
     <div class="pain-overlay" id="pain-overlay"></div>
-    <div class="thorn-scene" id="thorn-scene">
-      <div class="thorn-side thorn-left" id="thorn-left"></div>
-      <div class="thorn-center">
-
-        <div class="endurance-gauge-row">
-          <div class="endurance-gauge-block">
-            <p class="gauge-label">耐久（押し続けた時間）</p>
-            <div class="progress-bar-container">
-              <div class="progress-bar-fill" id="endurance-bar" style="width:0%"></div>
-            </div>
-            <p class="endurance-label"><span id="endurance-pct">0</span>%</p>
+    <div class="st01-boat-scene">
+      ${rowingServant ? `
+        <div class="st01-servant-hp-row">
+          <span class="st01-servant-label">${rowingServant.name} HP</span>
+          <div class="st01-servant-hp-track">
+            <div class="st01-servant-hp-fill" id="st01-servant-fill" style="width:100%"></div>
           </div>
-          <div class="endurance-gauge-block">
-            <p class="gauge-label sacrifice-gauge-label">生贄ゲージ（離している時間）</p>
-            <div class="progress-bar-container sacrifice-bar-bg">
-              <div class="sacrifice-bar-fill" id="sacrifice-bar" style="width:0%"></div>
-            </div>
-            <p class="sacrifice-label"><span id="sacrifice-pct">0</span>%</p>
-          </div>
+          <span class="st01-servant-hp-val" id="st01-servant-val">${servantHp}/${servantMaxHp}</span>
         </div>
+      ` : ''}
 
-        <button class="btn-hold-large" id="btn-hold" style="touch-action:none;user-select:none">
-          押し続けろ
-        </button>
-        <p class="mechanic-hint">
-          押すと茨に刺さる。<br>離すと口が従者を求める。
-        </p>
+      <div class="st01-progress-row">
+        <span class="st01-progress-label">対岸まで</span>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="st01-progress-bar" style="width:0%"></div>
+        </div>
+        <span class="st01-progress-pct" id="st01-progress-pct">0%</span>
       </div>
-      <div class="thorn-side thorn-right" id="thorn-right"></div>
+
+      ${rowingServant ? `
+        <div class="st01-servant-dialogue" id="st01-dialogue" style="opacity:0">
+          <span class="st01-dialogue-name">${rowingServant.name}</span>
+          <span class="st01-dialogue-text" id="st01-dialogue-text"></span>
+        </div>
+      ` : ''}
+
+      <button class="btn-hold-large" id="btn-hold" style="touch-action:none;user-select:none">
+        漕げ
+      </button>
+      <p class="mechanic-hint">
+        押すと加速するが、茨が刺さる。<br>離すと従者が傷ついていく。
+      </p>
     </div>
-    ${targetServant ? `
-      <div class="sacrifice-quick-btn">
-        <button class="btn-sacrifice" id="btn-sac-01">
-          従者を捧げる（${targetServant.name} — N最低）
-        </button>
-      </div>
-    ` : ''}
 
     <div class="st01-hp-large">
       <span class="st01-hp-large-label">HP</span>
@@ -233,94 +235,94 @@ async function runStage01(container: HTMLElement): Promise<void> {
   `);
 
   let isHolding = false;
-  let holdMs = 0;        // 累積押し時間
-  let sacrificeMs = 0;   // 累積非押し時間
+  let progress = 0;
   let gameActive = true;
-  let totalDamage = 0;
+  let totalPlayerDmg = 0;
+  let servantSacrificed = false;
+  const shownMilestones = new Set<number>();
+  let dialogueLocked = false;
 
-  // 押している間のダメージ ticker (100ms)
-  const holdTicker = setInterval(() => {
-    if (!gameActive || !isHolding) return;
+  async function showServantLine(text: string): Promise<void> {
+    if (dialogueLocked) return;
+    dialogueLocked = true;
+    const dial = document.getElementById('st01-dialogue');
+    const textEl = document.getElementById('st01-dialogue-text');
+    if (!dial || !textEl) { dialogueLocked = false; return; }
+    dial.style.opacity = '1';
+    textEl.textContent = '';
+    for (const ch of text) {
+      if (!gameActive && !servantSacrificed) { dialogueLocked = false; return; }
+      textEl.textContent += ch;
+      await sleep(40);
+    }
+    await sleep(2000);
+    dial.style.opacity = '0';
+    dialogueLocked = false;
+  }
 
-    // 耐久バー更新
-    holdMs += 100;
-    const endPct = Math.min(100, Math.round((holdMs / cfg.totalDurationMs) * 100));
-    const endBar = document.getElementById('endurance-bar');
-    const endPctEl = document.getElementById('endurance-pct');
-    if (endBar) endBar.style.width = `${endPct}%`;
-    if (endPctEl) endPctEl.textContent = String(endPct);
+  // 200ms tick: 進行 + プレイヤーHP
+  const mainTicker = setInterval(() => {
+    if (!gameActive) return;
 
-    // ダメージ（押している間）
-    const dmgPerTick = Math.ceil(cfg.penaltyHpPerSec * 0.1);
-    changeHp(-dmgPerTick);
-    totalDamage += dmgPerTick;
-    updateHpDisplay();
-    // 大きいHPバー更新
-    const bigFill = document.getElementById('st01-hp-fill');
-    const bigVal = document.getElementById('st01-hp-val');
-    const hpPct = Math.max(0, Math.round((state.hp / state.maxHp) * 100));
-    if (bigFill) bigFill.style.width = `${hpPct}%`;
-    if (bigVal) bigVal.textContent = `${state.hp} / ${state.maxHp}`;
+    const baseAdv = 0.5;
+    const holdAdv = isHolding ? 1.5 : 0;
+    progress = Math.min(100, progress + baseAdv + holdAdv);
 
-    if (state.hp <= 0) {
-      finish(false, true, null);
-      return;
+    const bar = document.getElementById('st01-progress-bar');
+    const pctEl = document.getElementById('st01-progress-pct');
+    if (bar) bar.style.width = `${progress}%`;
+    if (pctEl) pctEl.textContent = `${Math.round(progress)}%`;
+
+    if (isHolding) {
+      changeHp(-1);
+      totalPlayerDmg++;
+      updateHpDisplay();
+      const bigFill = document.getElementById('st01-hp-fill');
+      const bigVal = document.getElementById('st01-hp-val');
+      if (bigFill) bigFill.style.width = `${Math.max(0, Math.round((state.hp / state.maxHp) * 100))}%`;
+      if (bigVal) bigVal.textContent = `${state.hp} / ${state.maxHp}`;
     }
 
-    // 耐久クリア
-    if (holdMs >= cfg.totalDurationMs) {
-      finish(true, false, null);
+    for (const ms of [25, 50, 75]) {
+      if (progress >= ms && !shownMilestones.has(ms) && rowingServant) {
+        shownMilestones.add(ms);
+        showServantLine(rowingServant.dialogue.rowing);
+      }
     }
-  }, 100);
 
-  // 押していない間の生贄ゲージ ticker (200ms)
-  const sacrificeTicker = setInterval(() => {
-    if (!gameActive || isHolding) return;
-
-    sacrificeMs += 200;
-    const sacPct = Math.min(100, Math.round((sacrificeMs / cfg.totalDurationMs) * 100));
-    const sacBar = document.getElementById('sacrifice-bar');
-    const sacPctEl = document.getElementById('sacrifice-pct');
-    if (sacBar) sacBar.style.width = `${sacPct}%`;
-    if (sacPctEl) sacPctEl.textContent = String(sacPct);
-
-    // 茨を近づける（視覚的脅迫）
-    const thornProgress = sacPct;
-    const left = document.getElementById('thorn-left');
-    const right = document.getElementById('thorn-right');
-    if (left) left.style.transform = `translateX(${thornProgress - 100}%)`;
-    if (right) right.style.transform = `translateX(${100 - thornProgress}%)`;
-
-    // 生贄ゲージ満杯 → 自動生贄
-    if (sacrificeMs >= cfg.totalDurationMs) {
-      finish(false, false, targetServant);
-    }
+    if (state.hp <= 0) { finish('dead'); return; }
+    if (progress >= 100) { finish('success'); }
   }, 200);
 
-  function finish(endured: boolean, dead: boolean, autoSacServant: TarotServant | null): void {
-    if (!gameActive) return;
-    gameActive = false;
-    clearInterval(holdTicker);
-    clearInterval(sacrificeTicker);
-    docCleanup();
-    document.getElementById('pain-overlay')?.classList.remove('active');
+  // 1000ms tick: 従者HPダメージ（離しているとき）
+  const servantTicker = setInterval(() => {
+    if (!gameActive || isHolding || servantSacrificed || !rowingServant) return;
 
-    if (dead) {
-      showGameOver(container);
-      return;
-    }
+    servantHp = Math.max(0, servantHp - 1);
+    const fill = document.getElementById('st01-servant-fill');
+    const val = document.getElementById('st01-servant-val');
+    if (fill) fill.style.width = `${Math.round((servantHp / servantMaxHp) * 100)}%`;
+    if (val) val.textContent = `${servantHp}/${servantMaxHp}`;
 
-    let sacrificed = false;
-    let servant: TarotServant | null = null;
+    if (servantHp === 5) showServantLine(rowingServant.dialogue.pain);
 
-    if (!endured && autoSacServant) {
-      sacrificed = true;
-      servant = autoSacServant;
-      sacrificeServant(autoSacServant.id);
+    if (servantHp <= 0 && !servantSacrificed) {
+      servantSacrificed = true;
+      showServantLine(rowingServant.dialogue.sacrifice);
+      sacrificeServant(rowingServant.id);
       playSFX('sacrifice');
     }
+  }, 1000);
 
-    finishStage01(totalDamage, sacrificed, servant);
+  function finish(outcome: 'success' | 'dead'): void {
+    if (!gameActive) return;
+    gameActive = false;
+    clearInterval(mainTicker);
+    clearInterval(servantTicker);
+    docCleanup();
+    document.getElementById('pain-overlay')?.classList.remove('active');
+    if (outcome === 'dead') { showGameOver(container); return; }
+    finishStage01();
   }
 
   function startHolding(): void {
@@ -348,36 +350,22 @@ async function runStage01(container: HTMLElement): Promise<void> {
   document.addEventListener('mouseup', stopHolding);
   document.addEventListener('touchend', stopHolding);
 
-  // 手動生贄ボタン
-  document.getElementById('btn-sac-01')?.addEventListener('click', () => {
-    if (!targetServant || !gameActive) return;
-    gameActive = false;
-    clearInterval(holdTicker);
-    clearInterval(sacrificeTicker);
-    stopHolding();
-    docCleanup();
-    const sacced = targetServant;
-    sacrificeServant(sacced.id);
-    playSFX('sacrifice');
-    finishStage01(0, true, sacced);
-  });
-
-  async function finishStage01(dmg: number, sacrificed: boolean, servant: TarotServant | null): Promise<void> {
+  async function finishStage01(): Promise<void> {
     const resultEl = document.getElementById('stage-result')!;
     resultEl.style.display = 'block';
     let msg: string;
-    if (sacrificed && servant) {
-      msg = `${servant.name}が茨に身を投じた。口はその魂を喰らい、あなたは無傷で抜け出した。`;
+    if (servantSacrificed && rowingServant) {
+      msg = `${rowingServant.name}が茨に身を投じた。口はその魂を喰らい、あなたは対岸に辿り着いた。`;
     } else {
-      msg = `茨に刻まれながらも耐え抜いた。${dmg > 0 ? `HP -${dmg}` : '完璧な耐久。'}`;
+      msg = `対岸に辿り着いた。${totalPlayerDmg > 0 ? `HPが${totalPlayerDmg}削られた。` : '傷ひとつなく渡り切った。'}`;
     }
     await typewriter(resultEl, msg, 40);
 
     recordStageResult({
       stageId: 1, stageName: stageData.name,
-      outcome: sacrificed ? 'sacrifice' : 'success',
-      sacrificedServantName: servant?.name,
-      hpDelta: -dmg,
+      outcome: servantSacrificed ? 'sacrifice' : 'success',
+      sacrificedServantName: servantSacrificed ? rowingServant?.name : undefined,
+      hpDelta: -totalPlayerDmg,
     });
 
     await sleep(800);
@@ -386,29 +374,44 @@ async function runStage01(container: HTMLElement): Promise<void> {
 }
 
 // ===============================
-// ST-02 オオカミの出現（接近 × リスク報酬）
+// ST-02 鉱山の遭遇（従者獲得 → 犬タイミング）
 // ===============================
-// 【新メカニクス】
-//   狼が画面奥から近づいてくる（SVG拡大）
-//   待つほど金貨が増える（リスク報酬）
-//   「逃げろ！」で金貨確定、タイミングで逃走成功
-//   100%到達（逃げ遅れ）→ ランダム従者がロスト
+// 【メカニクス】
+//   鉱山で共鳴度2位・3位の従者を発見 → 仲間になる
+//   番犬が出現。タイミングよく避けると従者が反撃・撃退
+//   早すぎると落石で足止め（もう一度チャンス）
+//   遅すぎると噛まれてHPダメージ
 
 async function runStage02(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[1];
 
-  const _wolfCfg = getLeverConfig().timing.st02;
-  const APPROACH_DURATION = _wolfCfg.approachDurationMs;
-  const GOLD_PER_SEC = _wolfCfg.goldPerSec;
   container.innerHTML = stageLayout(2, stageData.name, stageData.area);
   createParticles(document.getElementById('stage-particles')!, 15);
 
   await sleep(300);
-  await narrateText('暗い森の奥から、二つの赤い目が光る。オオカミだ。待てば待つほど報酬は増えるが——逃げ遅れれば喰われる。', 38);
-  await sleep(400);
+  await narrateText(stageData.description, 40);
+  await sleep(500);
 
-  // 覚悟の間（プレイヤーが準備できたら開始）
+  // 従者獲得（共鳴度2位・3位）
+  const newServant1 = acquireNextServant();
+  const newServant2 = acquireNextServant();
+
+  if (newServant1) {
+    await sleep(400);
+    await narrateText(`${newServant1.name}が鉱山の奥から現れた。`, 40);
+    await sleep(200);
+    await narrateText(`${newServant1.name}「${newServant1.dialogue.intro}」`, 40);
+    await sleep(500);
+  }
+  if (newServant2) {
+    await narrateText(`${newServant2.name}も姿を現した。`, 40);
+    await sleep(200);
+    await narrateText(`${newServant2.name}「${newServant2.dialogue.intro}」`, 40);
+    await sleep(500);
+  }
+
+  // 覚悟の間
   await new Promise<void>(resolve => {
     const narrativeEl = document.getElementById('stage-narrative');
     if (narrativeEl) {
@@ -418,190 +421,150 @@ async function runStage02(container: HTMLElement): Promise<void> {
       readyBtn.style.marginTop = '1.5rem';
       readyBtn.addEventListener('click', () => { readyBtn.remove(); resolve(); }, { once: true });
       narrativeEl.appendChild(readyBtn);
-    } else {
-      resolve();
-    }
+    } else { resolve(); }
   });
   await sleep(300);
 
-  // E最高の従者（生贄候補：オオカミを引きつける）
-  const targetServant = findByDimension(state.aliveServants, 'E', 'max');
+  await narrateText('鉱山の番犬が牙を剥いて突進してくる——', 35);
+  await sleep(300);
 
-  setMechanic(`
-    <div class="wolf-approach-scene" id="wolf-scene">
-      <div class="wolf-forest-bg"></div>
+  const APPROACH_MS = 8000;
+  const SWEET_SPOT_MIN = 0.40;
+  const SWEET_SPOT_MAX = 0.82;
 
-      <div class="wolf-img-wrap" id="wolf-wrap">
-        <img src="/wolf.svg" class="wolf-img" id="wolf-img" alt="wolf" draggable="false"/>
-      </div>
-
-      <div class="wolf-danger-bar-wrap">
-        <div class="wolf-danger-bar" id="wolf-danger-bar" style="width:0%"></div>
-      </div>
-
-      <div class="wolf-hud">
-        <div class="wolf-gold-display">
-          <span class="wolf-gold-icon">&#x25C6;</span>
-          <span class="wolf-gold-label">金貨:</span>
-          <span class="wolf-gold-val" id="wolf-gold">0</span>
+  function buildDogScene(): void {
+    setMechanic(`
+      <div class="wolf-approach-scene" id="wolf-scene">
+        <div class="wolf-forest-bg"></div>
+        <div class="wolf-img-wrap" id="wolf-wrap">
+          <img src="/wolf.svg" class="wolf-img" id="wolf-img" alt="dog" draggable="false"/>
         </div>
-        <div class="wolf-time-display">
-          <span class="wolf-time-label" id="wolf-time-label">待機中…</span>
+        <div class="wolf-danger-bar-wrap">
+          <div class="wolf-danger-bar" id="wolf-danger-bar" style="width:0%"></div>
         </div>
+        <div class="wolf-hud">
+          <div class="wolf-time-display">
+            <span class="wolf-time-label" id="wolf-time-label">遠くから唸り声が聞こえる</span>
+          </div>
+        </div>
+        <button class="btn-wolf-escape" id="btn-dodge">避けろ！</button>
       </div>
-
-      <button class="btn-wolf-escape" id="btn-escape">逃げろ！</button>
-
-      ${targetServant ? `
-        <div class="sacrifice-quick-btn" style="margin-top:0.5rem">
-          <button class="btn-sacrifice" id="btn-sac-02">
-            ${targetServant.name} を囮にする（E最高の従者）
-          </button>
-        </div>
-      ` : ''}
-    </div>
-    <div class="stage-result" id="stage-result" style="display:none"></div>
-  `);
-
-  let gameActive = true;
-  let elapsedMs = 0;
-  let earnedGold = 0;
-  let escaped = false;
-
-  // 狼接近アニメーション（rAFループ）
-  let lastTick = Date.now();
-  let rafId: number;
-
-  function tick(): void {
-    if (!gameActive) return;
-    const now = Date.now();
-    const delta = now - lastTick;
-    lastTick = now;
-    elapsedMs += delta;
-
-    const progress = Math.min(1, elapsedMs / APPROACH_DURATION);
-
-    // 狼サイズ: 6% → 90%（画面幅比）
-    const wolfSize = 6 + progress * 84;
-    const wolfEl = document.getElementById('wolf-img');
-    if (wolfEl) {
-      (wolfEl as HTMLImageElement).style.width = `${wolfSize}%`;
-      (wolfEl as HTMLImageElement).style.maxWidth = `${wolfSize}%`;
-      // 赤みを徐々に増す
-      const redFilter = Math.round(progress * 120);
-      (wolfEl as HTMLImageElement).style.filter =
-        `drop-shadow(0 0 ${Math.round(progress * 24)}px rgba(180,0,0,${progress * 0.9})) sepia(${redFilter}%)`;
-    }
-
-    // 危険ゲージ
-    const dangerBar = document.getElementById('wolf-danger-bar');
-    if (dangerBar) dangerBar.style.width = `${progress * 100}%`;
-
-    // 金貨加算（秒ごと）
-    earnedGold = Math.floor((elapsedMs / 1000) * GOLD_PER_SEC);
-    const goldEl = document.getElementById('wolf-gold');
-    if (goldEl) goldEl.textContent = String(earnedGold);
-
-    // 時間ラベル
-    const timeLabel = document.getElementById('wolf-time-label');
-    if (timeLabel) {
-      if (progress < 0.4) timeLabel.textContent = '遠い…まだ余裕がある';
-      else if (progress < 0.7) timeLabel.textContent = '近づいてくる…';
-      else if (progress < 0.9) timeLabel.textContent = '危険！ 今すぐ逃げろ！';
-      else timeLabel.textContent = '！！！';
-    }
-
-    // 100%到達 → 噛まれる
-    if (progress >= 1.0) {
-      gameActive = false;
-      cancelAnimationFrame(rafId);
-      onWolfReach();
-      return;
-    }
-
-    rafId = requestAnimationFrame(tick);
-  }
-  rafId = requestAnimationFrame(tick);
-
-  // 逃走ボタン
-  document.getElementById('btn-escape')?.addEventListener('click', () => {
-    if (!gameActive || escaped) return;
-    escaped = true;
-    gameActive = false;
-    cancelAnimationFrame(rafId);
-
-    const progress = Math.min(1, elapsedMs / APPROACH_DURATION);
-    const isSafe = progress < 0.95; // 95%以上は間に合わない
-
-    if (isSafe) {
-      onEscapeSuccess(earnedGold);
-    } else {
-      // 逃げようとしたが間に合わなかった
-      onEscapeFail(earnedGold);
-    }
-  });
-
-  // 従者を囮にする（E最高）
-  document.getElementById('btn-sac-02')?.addEventListener('click', () => {
-    if (!targetServant || !gameActive) return;
-    gameActive = false;
-    escaped = true;
-    cancelAnimationFrame(rafId);
-    sacrificeServant(targetServant.id);
-    playSFX('sacrifice');
-    // 囮を使うと金貨も確定（ボーナス付き）
-    const bonusGold = earnedGold + 10;
-    addGold(bonusGold);
-    endStage02(`${targetServant.name}がオオカミを引きつけた。あなたは金貨${bonusGold}枚を手に脱出した。`, 'sacrifice', targetServant, 0, bonusGold);
-  });
-
-  function onWolfReach(): void {
-    // ランダムに生存している従者1体がロスト
-    const alive = state.aliveServants;
-    if (alive.length > 0) {
-      const victim = alive[Math.floor(Math.random() * alive.length)];
-      sacrificeServant(victim.id);
-      playSFX('sacrifice');
-      flashDamage();
-      changeHp(-20);
-      updateHpDisplay();
-      if (state.hp <= 0) { showGameOver(container); return; }
-      endStage02(
-        `逃げ遅れた。オオカミが${victim.name}に喰いついた。${victim.name}はロストした。HP -20`,
-        'fail', null, 20, 0,
-      );
-    } else {
-      // 従者なし → HPダメージのみ
-      changeHp(-30);
-      updateHpDisplay();
-      flashDamage();
-      if (state.hp <= 0) { showGameOver(container); return; }
-      endStage02('逃げ遅れた。オオカミに噛みつかれた。HP -30', 'fail', null, 30, 0);
-    }
+      <div class="stage-result" id="stage-result" style="display:none"></div>
+    `);
   }
 
-  function onEscapeSuccess(gold: number): void {
-    addGold(gold);
+  async function runDogApproach(durationMs: number, isRetry: boolean): Promise<void> {
+    buildDogScene();
+    if (isRetry) {
+      const lbl = document.getElementById('wolf-time-label');
+      if (lbl) lbl.textContent = '犬が再び向かってくる！';
+    }
+
+    let gameActive = true;
+    let elapsedMs = 0;
+    let lastTick = Date.now();
+    let rafId: number;
+
+    await new Promise<void>(resolveRound => {
+      function tick(): void {
+        if (!gameActive) return;
+        const now = Date.now();
+        elapsedMs += now - lastTick;
+        lastTick = now;
+
+        const progress = Math.min(1, elapsedMs / durationMs);
+
+        const wolfEl = document.getElementById('wolf-img') as HTMLImageElement | null;
+        if (wolfEl) {
+          wolfEl.style.width = `${6 + progress * 84}%`;
+          wolfEl.style.maxWidth = `${6 + progress * 84}%`;
+          wolfEl.style.filter =
+            `drop-shadow(0 0 ${Math.round(progress * 24)}px rgba(180,0,0,${progress * 0.9})) sepia(${Math.round(progress * 120)}%)`;
+        }
+        const dangerBar = document.getElementById('wolf-danger-bar');
+        if (dangerBar) dangerBar.style.width = `${progress * 100}%`;
+
+        const timeLabel = document.getElementById('wolf-time-label');
+        if (timeLabel) {
+          if (progress < 0.35) timeLabel.textContent = '唸りながら近づいてくる…';
+          else if (progress < 0.65) timeLabel.textContent = '速度が上がった——！';
+          else if (progress < SWEET_SPOT_MAX) timeLabel.textContent = '今だ！';
+          else timeLabel.textContent = '！！！';
+        }
+
+        if (progress >= 1.0) {
+          gameActive = false;
+          cancelAnimationFrame(rafId);
+          resolveRound();
+          onBitten();
+          return;
+        }
+        rafId = requestAnimationFrame(tick);
+      }
+      rafId = requestAnimationFrame(tick);
+
+      document.getElementById('btn-dodge')?.addEventListener('click', () => {
+        if (!gameActive) return;
+        gameActive = false;
+        cancelAnimationFrame(rafId);
+        const p = Math.min(1, elapsedMs / durationMs);
+        resolveRound();
+        if (p < SWEET_SPOT_MIN) {
+          onEarlyDodge();
+        } else if (p <= SWEET_SPOT_MAX) {
+          onGoodDodge();
+        } else {
+          onLateDodge();
+        }
+      }, { once: true });
+    });
+  }
+
+  let finished = false;
+
+  async function onEarlyDodge(): Promise<void> {
+    if (finished) return;
+    const narrativeEl = document.getElementById('stage-narrative');
+    if (narrativeEl) narrativeEl.textContent = '';
+    await narrateText('早すぎた！　落石で犬の足が止まった——もう一度来る！', 40);
+    await sleep(1500);
+    // 2回目チャンス（5秒、リトライフラグ）
+    await runDogApproach(5000, true);
+  }
+
+  async function onGoodDodge(): Promise<void> {
+    if (finished) return;
+    finished = true;
     playSFX('reveal');
-    endStage02(
-      `素早く逃げ切った。金貨${gold}枚を手に入れた。`,
-      'success', null, 0, gold,
-    );
+    const attacker = newServant1 ?? newServant2 ?? state.aliveServants[0];
+    const msg = attacker
+      ? `${attacker.name}が犬に飛びかかり撃退した！　道が開けた。`
+      : '間一髪で避けた。犬は諦めて引いていった。';
+    await endStage02(msg, 'success', null, 0, 15);
+    addGold(15);
   }
 
-  function onEscapeFail(gold: number): void {
-    // ギリギリで逃げようとして噛まれた → HP-10、金貨半減
-    const halfGold = Math.floor(gold / 2);
-    addGold(halfGold);
-    changeHp(-10);
+  async function onLateDodge(): Promise<void> {
+    if (finished) return;
+    finished = true;
+    changeHp(-15);
     updateHpDisplay();
     flashDamage();
     if (state.hp <= 0) { showGameOver(container); return; }
-    endStage02(
-      `逃げるのが遅かった。爪に引っかかれた。金貨${halfGold}枚を手に入れた。HP -10`,
-      'fail', null, 10, halfGold,
-    );
+    await endStage02('避けるのが遅れた。犬の牙が腕を掠めた。HP -15', 'fail', null, 15, 0);
   }
+
+  async function onBitten(): Promise<void> {
+    if (finished) return;
+    finished = true;
+    changeHp(-25);
+    updateHpDisplay();
+    flashDamage();
+    if (state.hp <= 0) { showGameOver(container); return; }
+    await endStage02('逃げ遅れた。犬に噛みつかれた。HP -25', 'fail', null, 25, 0);
+  }
+
+  await runDogApproach(APPROACH_MS, false);
 
   async function endStage02(
     msg: string,
@@ -730,13 +693,22 @@ async function runStage03(container: HTMLElement): Promise<void> {
 }
 
 // ===============================
-// ST-04 孤児との出会い
+// ST-04 孤児との出会い（RPGダイアログ）
 // ===============================
+// 【メカニクス】
+//   4ラウンドの選択。信頼度が積み上がる
+//   良い選択（話す・渡す・親切）→ 信頼+1
+//   悪い選択（無視・騙す・追い払う）→ 信頼変化なし
+//   最終ラウンドで信頼3以上 → 子どもが従者として仲間になる
+
+interface DialogueRound {
+  prompt: string;
+  options: { text: string; good: boolean; response: string }[];
+}
 
 async function runStage04(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[3];
-  const cfg = getLeverConfig().selection.st04;
 
   container.innerHTML = stageLayout(4, stageData.name, stageData.area);
 
@@ -744,66 +716,140 @@ async function runStage04(container: HTMLElement): Promise<void> {
   await narrateText(stageData.description, 40);
   await sleep(600);
 
-  let seconds = cfg.timeoutSec;
-  let choiceMade = false;
+  // 次に加入する可能性のある従者をプールから覗く
+  const candidateServant = state.servantPool[state.nextServantIndex] ?? null;
+
+  const rounds: DialogueRound[] = [
+    {
+      prompt: '廃屋の陰に、小さな子どもが座っている。目が合った。',
+      options: [
+        { text: '声をかける', good: true, response: '子どもは驚いたように顔を上げたが、すぐに警戒を緩めた。' },
+        { text: '見なかったことにする', good: false, response: '子どもは、あなたが通り過ぎるのを黙って見ていた。' },
+      ],
+    },
+    {
+      prompt: '子どもは怯えながらも、あなたを見つめている。',
+      options: [
+        { text: '優しく話しかける', good: true, response: '「怖くないよ」と言うと、子どもは少しだけ肩の力を抜いた。' },
+        { text: '急ぎ足で通り過ぎる', good: false, response: '子どもは何も言わず、目だけで追ってきた。' },
+        { text: '「何者だ？」と問いただす', good: false, response: '子どもはびくっとして、壁に背を向けた。' },
+      ],
+    },
+    {
+      prompt: '話を聞くと、子どもは親をなくしたという。腹を空かせている様子だ。',
+      options: [
+        { text: '食べ物を分ける', good: true, response: '子どもは両手でそれを受け取り、小さな声でお礼を言った。' },
+        { text: '安全な場所を教える', good: true, response: '子どもは真剣な顔でうなずき、行き先を覚えようとしている。' },
+        { text: '「自分のことで精一杯だ」と断る', good: false, response: '子どもは「……そうですよね」と静かに言った。' },
+      ],
+    },
+    {
+      prompt: '子どもが立ち上がり、あなたを見上げる。「……一緒に連れて行ってもらえませんか」',
+      options: [
+        { text: '「来なさい」と手を差し伸べる', good: true, response: '子どもはその手を握った。小さいが、確かな力で。' },
+        { text: '「危険だから無理だ」と断る', good: false, response: '子どもは「わかりました」と言って、また座り込んだ。' },
+        { text: '黙って立ち去る', good: false, response: '子どもの視線が背中に刺さる。振り返らなかった。' },
+      ],
+    },
+  ];
+
+  let trust = 0;
+  let currentRound = 0;
 
   setMechanic(`
-    <div class="countdown-ring" id="countdown-ring">
-      <span id="countdown-num">${cfg.timeoutSec}</span>
-    </div>
-    <p class="mechanic-hint">どうする？</p>
-    <div class="choice-grid-2x2">
-      <button class="choice-btn" id="btn-talk">話しかける</button>
-      <button class="choice-btn" id="btn-money">お金を渡す</button>
-      <button class="choice-btn" id="btn-guide">案内してもらう</button>
-      <button class="choice-btn sel-danger" id="btn-ignore">無視する</button>
+    <div class="rpg-dialogue-scene" id="rpg-dialogue">
+      <div class="rpg-trust-bar-wrap">
+        <span class="rpg-trust-label">信頼度</span>
+        <div class="rpg-trust-track">
+          <div class="rpg-trust-fill" id="rpg-trust-fill" style="width:0%"></div>
+        </div>
+        <span class="rpg-trust-val" id="rpg-trust-val">0 / ${rounds.length}</span>
+      </div>
+      <p class="rpg-prompt" id="rpg-prompt"></p>
+      <p class="rpg-response" id="rpg-response" style="opacity:0"></p>
+      <div class="rpg-options" id="rpg-options"></div>
     </div>
     <div class="stage-result" id="stage-result" style="display:none"></div>
   `);
 
-  const countdownId = setInterval(() => {
-    seconds--;
-    const el = document.getElementById('countdown-num');
-    if (el) el.textContent = String(seconds);
-    if (seconds <= 0) {
-      clearInterval(countdownId);
-      if (!choiceMade) resolveChoice('ignore');
-    }
-  }, 1000);
+  async function showRound(roundIdx: number): Promise<void> {
+    const round = rounds[roundIdx];
+    const promptEl = document.getElementById('rpg-prompt')!;
+    const responseEl = document.getElementById('rpg-response')!;
+    const optionsEl = document.getElementById('rpg-options')!;
 
-  ['talk', 'money', 'guide', 'ignore'].forEach(id => {
-    document.getElementById(`btn-${id}`)?.addEventListener('click', () => {
-      if (!choiceMade) resolveChoice(id as 'talk' | 'money' | 'guide' | 'ignore');
+    responseEl.style.opacity = '0';
+    optionsEl.innerHTML = '';
+    promptEl.textContent = '';
+    await typewriter(promptEl, round.prompt, 35);
+    await sleep(300);
+
+    round.options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = `choice-btn${opt.good ? '' : ' sel-danger'}`;
+      btn.textContent = opt.text;
+      btn.addEventListener('click', async () => {
+        optionsEl.querySelectorAll('button').forEach(b => (b as HTMLButtonElement).disabled = true);
+        if (opt.good) trust++;
+        updateTrustBar();
+        responseEl.style.opacity = '1';
+        responseEl.textContent = '';
+        await typewriter(responseEl, opt.response, 35);
+        await sleep(800);
+
+        currentRound++;
+        if (currentRound < rounds.length) {
+          await showRound(currentRound);
+        } else {
+          await finishStage04();
+        }
+      }, { once: true });
+      optionsEl.appendChild(btn);
     });
-  });
+  }
 
-  async function resolveChoice(choice: 'talk' | 'money' | 'guide' | 'ignore'): Promise<void> {
-    choiceMade = true;
-    clearInterval(countdownId);
+  function updateTrustBar(): void {
+    const fill = document.getElementById('rpg-trust-fill');
+    const val = document.getElementById('rpg-trust-val');
+    const pct = Math.round((trust / rounds.length) * 100);
+    if (fill) fill.style.width = `${pct}%`;
+    if (val) val.textContent = `${trust} / ${rounds.length}`;
+  }
 
-    const msgs: Record<string, string> = {
-      talk: '子どもと話した。有益な情報を得た。信頼関係が生まれた。',
-      money: 'コインを渡した。子どもは喜んで道案内をしてくれた。',
-      guide: '案内を頼んだ。子どもは詳しい情報を教えてくれた。',
-      ignore: '無視した。後の番人の試練が、より厳しくなるだろう。',
-    };
-    const msg = msgs[choice];
-
-    state.orphanChoice = choice;
-
+  async function finishStage04(): Promise<void> {
     const resultEl = document.getElementById('stage-result')!;
     resultEl.style.display = 'block';
-    await typewriter(resultEl, msg, 40);
+    let msg: string;
+    let outcome: 'success' | 'fail';
 
+    if (trust >= 3 && candidateServant) {
+      acquireNextServant();
+      msg = `${candidateServant.name}が仲間になった。「${candidateServant.dialogue.intro}」`;
+      outcome = 'success';
+      state.orphanChoice = 'joined';
+      playSFX('reveal');
+    } else if (trust >= 2) {
+      msg = '子どもは道の情報を教えてくれた。信頼は芽生えたが、旅は別々だ。';
+      outcome = 'success';
+      state.orphanChoice = 'kind';
+    } else {
+      msg = '子どもとの縁はなかった。番人の試練が、より厳しくなるだろう。';
+      outcome = 'fail';
+      state.orphanChoice = 'cold';
+    }
+
+    await typewriter(resultEl, msg, 40);
     recordStageResult({
       stageId: 4, stageName: stageData.name,
-      outcome: choice === 'ignore' ? 'fail' : 'success',
-      choice, hpDelta: 0,
+      outcome,
+      choice: state.orphanChoice ?? undefined,
+      hpDelta: 0,
     });
-
     await sleep(800);
     addNextButton(container, resultEl);
   }
+
+  await showRound(0);
 }
 
 // ===============================

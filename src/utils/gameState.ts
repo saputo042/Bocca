@@ -2,6 +2,7 @@
 
 import type { BigFiveScores } from '../data/bigfive';
 import type { TarotServant } from '../data/tarot';
+import { GAME_CONFIG } from '../data/gameConfig';
 
 // ===============================
 // 型定義
@@ -22,6 +23,8 @@ export interface GameState {
   bigFive: BigFiveScores;
   servants: TarotServant[];
   aliveServants: TarotServant[];
+  servantPool: TarotServant[];
+  nextServantIndex: number;
   hp: number;
   maxHp: number;
   gold: number;
@@ -50,9 +53,11 @@ function createInitial(): GameState {
     bigFive: { O: 0, C: 0, E: 0, A: 0, N: 0 },
     servants: [],
     aliveServants: [],
-    hp: 100,
-    maxHp: 100,
-    gold: 0,
+    servantPool: [],
+    nextServantIndex: 0,
+    hp: GAME_CONFIG.initialHp,
+    maxHp: GAME_CONFIG.initialHp,
+    gold: GAME_CONFIG.initialGold,
     currentStage: 1,
     gameOver: false,
     bossDefeated: false,
@@ -112,6 +117,22 @@ export function recordStageResult(result: StageResult): void {
 export function setServants(servants: TarotServant[]): void {
   _state.servants = servants.map(s => ({ ...s, alive: true }));
   _state.aliveServants = servants.map(s => ({ ...s, alive: true }));
+}
+
+export function initServantPool(servants: TarotServant[]): void {
+  _state.servantPool = servants.map(s => ({ ...s, alive: true }));
+  _state.nextServantIndex = 0;
+  _state.servants = [];
+  _state.aliveServants = [];
+}
+
+export function acquireNextServant(): TarotServant | null {
+  if (_state.nextServantIndex >= _state.servantPool.length) return null;
+  const servant = { ..._state.servantPool[_state.nextServantIndex], alive: true };
+  _state.nextServantIndex++;
+  _state.servants.push(servant);
+  _state.aliveServants.push(servant);
+  return servant;
 }
 
 export function setBigFive(scores: BigFiveScores): void {

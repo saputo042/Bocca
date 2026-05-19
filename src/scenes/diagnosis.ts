@@ -1,6 +1,6 @@
 // Bucca 診断シーン
 
-import { navigateTo, setServants, setBigFive, sleep, typewriter } from '../utils/gameState';
+import { navigateTo, initServantPool, acquireNextServant, setBigFive, sleep, typewriter } from '../utils/gameState';
 import { QUESTIONS, calculateScores, type BigFiveScores } from '../data/bigfive';
 import { selectServants } from '../data/tarot';
 
@@ -223,7 +223,9 @@ export function renderDiagnosisScene(container: HTMLElement): void {
     await sleep(800);
 
     setBigFive(scores);
-    setServants(selectServants(scores));
+    const pool = selectServants(scores);
+    initServantPool(pool);
+    acquireNextServant(); // 共鳴度1位を初期従者として取得
     navigateTo('servantReveal');
   }
 }
