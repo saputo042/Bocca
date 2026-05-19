@@ -6,7 +6,7 @@ import {
 } from '../utils/gameState';
 import { findByDimension, TAROT_SYMBOLS, type TarotServant } from '../data/tarot';
 import { STAGES } from '../data/stages';
-import { LEVER_CONFIG } from '../data/levers';
+import { getLeverConfig } from '../data/gameConfig';
 import { playSFX } from '../utils/audio';
 
 // ===============================
@@ -167,7 +167,7 @@ function addNextButton(container: HTMLElement, parentEl: HTMLElement): void {
 async function runStage01(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[0];
-  const cfg = LEVER_CONFIG.endurance.st01;
+  const cfg = getLeverConfig().endurance.st01;
 
   container.innerHTML = stageLayout(1, stageData.name, stageData.area);
   createParticles(document.getElementById('stage-particles')!, 20);
@@ -210,6 +210,13 @@ async function runStage01(container: HTMLElement): Promise<void> {
       </div>
       <div class="thorn-side thorn-right" id="thorn-right"></div>
     </div>
+    ${targetServant ? `
+      <div class="sacrifice-quick-btn">
+        <button class="btn-sacrifice" id="btn-sac-01">
+          従者を捧げる（${targetServant.name} — N最低）
+        </button>
+      </div>
+    ` : ''}
     <div class="stage-result" id="stage-result" style="display:none"></div>
   `);
 
@@ -321,6 +328,20 @@ async function runStage01(container: HTMLElement): Promise<void> {
   document.addEventListener('mouseup', stopHolding);
   document.addEventListener('touchend', stopHolding);
 
+  // 手動生贄ボタン
+  document.getElementById('btn-sac-01')?.addEventListener('click', () => {
+    if (!targetServant || !gameActive) return;
+    gameActive = false;
+    clearInterval(holdTicker);
+    clearInterval(sacrificeTicker);
+    stopHolding();
+    docCleanup();
+    const sacced = targetServant;
+    sacrificeServant(sacced.id);
+    playSFX('sacrifice');
+    finishStage01(0, true, sacced);
+  });
+
   async function finishStage01(dmg: number, sacrificed: boolean, servant: TarotServant | null): Promise<void> {
     const resultEl = document.getElementById('stage-result')!;
     resultEl.style.display = 'block';
@@ -357,16 +378,31 @@ async function runStage02(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[1];
 
-  // 接近時間（ミリ秒）
-  const APPROACH_DURATION = 12000;
-  // 金貨レート: 1秒ごとに加算
-  const GOLD_PER_SEC = 5;
+  const _wolfCfg = getLeverConfig().timing.st02;
+  const APPROACH_DURATION = _wolfCfg.approachDurationMs;
+  const GOLD_PER_SEC = _wolfCfg.goldPerSec;
   container.innerHTML = stageLayout(2, stageData.name, stageData.area);
   createParticles(document.getElementById('stage-particles')!, 15);
 
   await sleep(300);
   await narrateText('暗い森の奥から、二つの赤い目が光る。オオカミだ。待てば待つほど報酬は増えるが——逃げ遅れれば喰われる。', 38);
-  await sleep(500);
+  await sleep(400);
+
+  // 覚悟の間（プレイヤーが準備できたら開始）
+  await new Promise<void>(resolve => {
+    const narrativeEl = document.getElementById('stage-narrative');
+    if (narrativeEl) {
+      const readyBtn = document.createElement('button');
+      readyBtn.className = 'btn-primary stage-ready-btn';
+      readyBtn.textContent = '目を凝らせ——';
+      readyBtn.style.marginTop = '1.5rem';
+      readyBtn.addEventListener('click', () => { readyBtn.remove(); resolve(); }, { once: true });
+      narrativeEl.appendChild(readyBtn);
+    } else {
+      resolve();
+    }
+  });
+  await sleep(300);
 
   // E最高の従者（生贄候補：オオカミを引きつける）
   const targetServant = findByDimension(state.aliveServants, 'E', 'max');
@@ -576,7 +612,7 @@ async function runStage02(container: HTMLElement): Promise<void> {
 async function runStage03(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[2];
-  const cfg = LEVER_CONFIG.selection.st03;
+  const cfg = getLeverConfig().selection.st03;
 
   container.innerHTML = stageLayout(3, stageData.name, stageData.area);
   createParticles(document.getElementById('stage-particles')!, 10);
@@ -680,7 +716,7 @@ async function runStage03(container: HTMLElement): Promise<void> {
 async function runStage04(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[3];
-  const cfg = LEVER_CONFIG.selection.st04;
+  const cfg = getLeverConfig().selection.st04;
 
   container.innerHTML = stageLayout(4, stageData.name, stageData.area);
 
@@ -757,7 +793,7 @@ async function runStage04(container: HTMLElement): Promise<void> {
 async function runStage05(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[4];
-  const cfg = LEVER_CONFIG.battle.st05;
+  const cfg = getLeverConfig().battle.st05;
 
   container.innerHTML = stageLayout(5, stageData.name, stageData.area);
   createParticles(document.getElementById('stage-particles')!, 15);
@@ -953,7 +989,7 @@ async function runStage06(container: HTMLElement): Promise<void> {
 async function runStage07(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[6];
-  const cfg = LEVER_CONFIG.timing.st07;
+  const cfg = getLeverConfig().timing.st07;
 
   container.innerHTML = stageLayout(7, stageData.name, stageData.area);
   createParticles(document.getElementById('stage-particles')!, 20);
@@ -972,7 +1008,23 @@ async function runStage07(container: HTMLElement): Promise<void> {
 
   await sleep(300);
   await narrateText(introText, 40);
-  await sleep(600);
+  await sleep(400);
+
+  // 覚悟の間
+  await new Promise<void>(resolve => {
+    const narrativeEl = document.getElementById('stage-narrative');
+    if (narrativeEl) {
+      const readyBtn = document.createElement('button');
+      readyBtn.className = 'btn-primary stage-ready-btn';
+      readyBtn.textContent = '向き合う——';
+      readyBtn.style.marginTop = '1.5rem';
+      readyBtn.addEventListener('click', () => { readyBtn.remove(); resolve(); }, { once: true });
+      narrativeEl.appendChild(readyBtn);
+    } else {
+      resolve();
+    }
+  });
+  await sleep(300);
 
   if (state.hasKey) {
     setMechanic(`
@@ -1111,8 +1163,8 @@ async function runStage07(container: HTMLElement): Promise<void> {
             pressed = true;
             hitBtn.disabled = true;
             ringEl.style.display = 'none';
-            changeHp(-10); updateHpDisplay(); flashDamage();
-            statusEl.textContent = '遅すぎた... HP -10';
+            changeHp(-cfg.missDamage); updateHpDisplay(); flashDamage();
+            statusEl.textContent = `遅すぎた... HP -${cfg.missDamage}`;
             roundActive = false;
             if (state.hp <= 0) { showGameOver(container); return; }
             setTimeout(doRing, 1200);
@@ -1141,8 +1193,8 @@ async function runStage07(container: HTMLElement): Promise<void> {
           guardianHp -= 1;
           statusEl.textContent = '少し遅かった。かすり傷（-1）';
         } else {
-          changeHp(-10); updateHpDisplay(); flashDamage();
-          statusEl.textContent = 'タイミングがズレた。 HP -10';
+          changeHp(-cfg.missDamage); updateHpDisplay(); flashDamage();
+          statusEl.textContent = `タイミングがズレた。 HP -${cfg.missDamage}`;
         }
 
         updateGuardianHp();
@@ -1305,18 +1357,35 @@ async function runStage08(container: HTMLElement): Promise<void> {
 async function runStage09(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[8];
-  const cfg = LEVER_CONFIG.battle.st09;
+  const cfg = getLeverConfig().battle.st09;
 
   container.innerHTML = stageLayout(9, stageData.name, stageData.area);
   createParticles(document.getElementById('stage-particles')!, 30);
 
   await sleep(300);
   await narrateText('問の間。高さ3mの真実の口。これまでの選択が映し出される。「お前は何者だ」', 40);
-  await sleep(800);
+  await sleep(500);
+
+  // 覚悟の間（最終決戦前の静寂）
+  await new Promise<void>(resolve => {
+    const narrativeEl = document.getElementById('stage-narrative');
+    if (narrativeEl) {
+      const readyBtn = document.createElement('button');
+      readyBtn.className = 'btn-primary stage-ready-btn';
+      readyBtn.textContent = '——答えを示せ';
+      readyBtn.style.marginTop = '1.5rem';
+      readyBtn.addEventListener('click', () => { readyBtn.remove(); resolve(); }, { once: true });
+      narrativeEl.appendChild(readyBtn);
+    } else {
+      resolve();
+    }
+  });
+  await sleep(500);
 
   const bossMaxHp = state.hasSword ? cfg.bossMaxHp - 20 : cfg.bossMaxHp;
   let bossHp = bossMaxHp;
   let roundActive = false;
+  let leverCancelFn: (() => void) | null = null;
 
   function renderBossUI(): void {
     setMechanic(`
@@ -1394,8 +1463,6 @@ async function runStage09(container: HTMLElement): Promise<void> {
       leverBtn.addEventListener('click', () => {
         if (roundActive) return;
         roundActive = true;
-        leverBtn.disabled = true;
-        if (sacBtn) sacBtn.disabled = true;
         if (counterEl) counterEl.style.display = 'block';
 
         let localClicks = 0;
@@ -1409,9 +1476,8 @@ async function runStage09(container: HTMLElement): Promise<void> {
           if (cntEl) cntEl.textContent = String(localClicks);
           if (localClicks >= 5) {
             leverBtn.removeEventListener('click', rapidClick);
+            leverCancelFn = null;
             leverBtn.innerHTML = origText;
-            leverBtn.disabled = false;
-            if (sacBtn) sacBtn.disabled = false;
             if (counterEl) counterEl.style.display = 'none';
 
             bossHp -= cfg.leverDamage;
@@ -1424,14 +1490,31 @@ async function runStage09(container: HTMLElement): Promise<void> {
             roundActive = false;
           }
         };
+
+        leverCancelFn = () => {
+          leverBtn.removeEventListener('click', rapidClick);
+          leverCancelFn = null;
+          leverBtn.innerHTML = origText;
+          if (counterEl) counterEl.style.display = 'none';
+          if (cntEl) cntEl.textContent = '0';
+          roundActive = false;
+        };
+
         leverBtn.addEventListener('click', rapidClick);
       });
     }
 
     if (sacBtn) {
       sacBtn.addEventListener('click', async () => {
+        // レバー攻撃中でも従者犠牲は割り込み可能
+        if (roundActive && leverCancelFn) {
+          leverCancelFn();
+        }
         if (roundActive) return;
-        if (aliveServants().length === 0) return;
+        if (aliveServants().length === 0) {
+          setStatus('従者がいません');
+          return;
+        }
         roundActive = true;
         if (leverBtn) leverBtn.disabled = true;
         sacBtn.disabled = true;

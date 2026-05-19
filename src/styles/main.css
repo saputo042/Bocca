@@ -1163,46 +1163,260 @@ body {
 }
 
 /* =============================================
+   覚悟ボタン（ステージ開始前の準備）
+============================================= */
+.stage-ready-btn {
+  display: block;
+  margin: var(--spacing-lg) auto 0;
+  padding: var(--spacing-sm) var(--spacing-xl);
+  font-size: 0.95rem;
+  letter-spacing: 0.2em;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* =============================================
+   性格ナラティブ（真実の口の裁定）
+============================================= */
+.personality-reading {
+  margin-top: var(--spacing-xl);
+  border-top: 1px solid rgba(201, 162, 39, 0.2);
+  padding-top: var(--spacing-xl);
+}
+
+.personality-oracle-line {
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  color: var(--color-gold-dim);
+  letter-spacing: 0.3em;
+  margin-bottom: var(--spacing-lg);
+}
+
+.personality-narrative {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.personality-para {
+  color: var(--text-primary);
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  line-height: 2;
+  padding-left: 1rem;
+  border-left: 2px solid rgba(201, 162, 39, 0.25);
+  transition: border-color var(--transition-med);
+}
+
+.personality-para:first-child {
+  border-left-color: rgba(201, 162, 39, 0.6);
+  font-size: 1rem;
+}
+
+.personality-para:hover {
+  border-left-color: rgba(201, 162, 39, 0.5);
+}
+
+.report-note-small {
+  margin-top: var(--spacing-lg);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-align: center;
+  font-style: italic;
+}
+
+/* =============================================
    レスポンシブ対応
 ============================================= */
 @media (max-width: 768px) {
-  .personas-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: var(--spacing-sm);
-  }
-
-  .persona-card-inner {
-    padding: var(--spacing-md);
-  }
-
-  .maze-personas {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .maze-persona-card {
-    width: 100%;
-    max-width: 320px;
-  }
-
-  .food-card {
-    flex-direction: column;
-  }
-
-  .diagnosis-layers {
-    gap: var(--spacing-md);
-  }
-
-  .entrance-content,
-  .finale-content {
+  /* タイトル */
+  .title-content {
     padding: var(--spacing-xl) var(--spacing-md);
   }
-
+  .game-title {
+    font-size: clamp(2.5rem, 12vw, 5rem);
+  }
+  .title-steps {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    align-items: center;
+  }
+  .title-step-arrow {
+    transform: rotate(90deg);
+  }
   .bocca-mouth {
     width: 80px;
     height: 80px;
   }
 
+  /* 診断 */
+  .diagnosis-wrapper {
+    padding: var(--spacing-md);
+  }
+  .diag-mode-cards {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+  .diag-mode-card {
+    width: 100%;
+    max-width: 100%;
+  }
+  .diag-input-row {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+  .diag-input-controls {
+    width: 100%;
+  }
+  .diag-slider {
+    width: 100%;
+  }
+  .diagnosis-answers {
+    gap: var(--spacing-xs);
+  }
+  .diag-answer-btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.85rem;
+  }
+
+  /* 従者公開 */
+  .servant-reveal-wrapper {
+    padding: var(--spacing-md);
+  }
+  .servant-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm);
+  }
+  .servant-card {
+    padding: var(--spacing-sm);
+  }
+  .servant-name {
+    font-size: 0.9rem;
+  }
+
+  /* ステージ共通 */
+  .stage-header {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  .stage-hp-wrap {
+    width: 100%;
+  }
+  .hp-bar-container {
+    flex: 1;
+    min-width: 120px;
+  }
+  .stage-body {
+    padding: var(--spacing-md);
+  }
+  .stage-narrative {
+    font-size: 0.9rem;
+    line-height: 1.8;
+  }
+
+  /* ボタン系 */
+  .choice-grid {
+    grid-template-columns: 1fr;
+  }
+  .choice-grid-2x2 {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm);
+  }
+  .btn-hold-large {
+    font-size: 1.1rem;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    min-width: 200px;
+    min-height: 80px;
+  }
+  .battle-split-area {
+    gap: var(--spacing-md);
+  }
+  .battle-btn-left,
+  .battle-btn-right {
+    flex: 1;
+    min-height: 64px;
+    font-size: 1.2rem;
+  }
+
+  /* ショップ */
+  .item-shop-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm);
+  }
+  .item-card {
+    padding: var(--spacing-sm);
+  }
+
+  /* ボスUI */
+  .boss-action-row {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  .btn-attack,
+  .btn-sacrifice {
+    width: 100%;
+  }
+
+  /* フィナーレ */
+  .finale-content {
+    padding: var(--spacing-xl) var(--spacing-md);
+  }
+  .servant-chip-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .bigfive-bars {
+    gap: var(--spacing-sm);
+  }
+  .bf-bar-row {
+    gap: var(--spacing-xs);
+  }
+  .bf-bar-label {
+    font-size: 0.75rem;
+    min-width: 90px;
+  }
+  .personality-para {
+    font-size: 0.88rem;
+    line-height: 1.9;
+  }
+  .stage-log-item {
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    font-size: 0.8rem;
+  }
+
+  /* 従者選択モーダル */
+  .servant-select-modal {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  /* 狼シーン */
+  .wolf-hud {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  /* ring-arena */
+  .ring-arena {
+    width: 160px;
+    height: 160px;
+  }
+  .ring-target {
+    width: 60px;
+    height: 60px;
+  }
+  .btn-ring-hit {
+    width: 60px;
+    height: 60px;
+    font-size: 0.75rem;
+  }
+
+  /* 汎用 */
+  .entrance-content,
+  .finale-content {
+    padding: var(--spacing-xl) var(--spacing-md);
+  }
   .maze-hud {
     flex-direction: column;
     gap: var(--spacing-xs);
@@ -4346,3 +4560,32 @@ body {
 .sacrifice-bar-fill{height:100%;background:linear-gradient(90deg,#7f1d1d,#ef4444);border-radius:4px;transition:width 0.18s linear}
 .sacrifice-label{font-size:0.82rem;color:#f87171;text-align:center;font-weight:600}
 .endurance-label{font-size:0.82rem;color:var(--color-gold);text-align:center;font-weight:600}
+
+/* =============================================
+   ゲーム設定シーン
+============================================= */
+.scene-config{background:radial-gradient(ellipse at 50% 10%,#0a0a16 0%,#050509 70%)}
+.config-wrapper{position:relative;z-index:10;max-width:680px;margin:0 auto;padding:2rem 1.5rem 3rem;display:flex;flex-direction:column;gap:1.5rem}
+.config-header{display:flex;flex-direction:column;gap:0.5rem}
+.btn-back-config{align-self:flex-start;background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-family:var(--font-serif);font-size:0.85rem;padding:0;text-decoration:underline}
+.btn-back-config:hover{color:var(--text-secondary)}
+.config-title{font-family:var(--font-display);font-size:1.6rem;color:var(--color-gold);letter-spacing:0.12em;margin:0}
+.config-subtitle{font-size:0.82rem;color:var(--text-muted);margin:0}
+.config-sections{display:flex;flex-direction:column;gap:1.25rem}
+.config-section{background:rgba(10,10,20,0.6);border:1px solid rgba(201,162,39,0.18);border-radius:8px;padding:1.25rem;display:flex;flex-direction:column;gap:0.85rem}
+.config-section-head{display:flex;align-items:center;gap:0.5rem;padding-bottom:0.5rem;border-bottom:1px solid rgba(201,162,39,0.1)}
+.config-stage-badge{font-size:0.7rem;font-family:var(--font-sans);color:#050509;background:var(--color-gold);border-radius:3px;padding:0.1rem 0.5rem;letter-spacing:0.08em;font-weight:700}
+.config-section-name{font-family:var(--font-serif);font-size:0.95rem;color:var(--text-primary)}
+.config-row{display:flex;flex-direction:column;gap:0.3rem}
+.config-row-label{display:flex;justify-content:space-between;align-items:baseline}
+.config-param-name{font-size:0.85rem;color:var(--text-secondary)}
+.config-param-default{font-size:0.72rem;color:var(--text-muted)}
+.config-row-control{display:flex;align-items:center;gap:0.6rem}
+.config-slider{flex:1;appearance:none;height:4px;background:rgba(201,162,39,0.2);border-radius:2px;outline:none;cursor:pointer}
+.config-slider::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:var(--color-gold);cursor:pointer;box-shadow:0 0 6px rgba(201,162,39,0.5)}
+.config-slider::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--color-gold);cursor:pointer;border:none}
+.config-val{font-family:var(--font-sans);font-size:0.9rem;color:var(--color-gold);min-width:3rem;text-align:right}
+.config-unit{font-size:0.75rem;color:var(--text-muted);min-width:1.5rem}
+.config-actions{display:flex;gap:1rem;justify-content:flex-end;margin-top:0.5rem}
+.btn-config{background:transparent;border:1px solid rgba(201,162,39,0.3);color:var(--text-secondary);font-family:var(--font-serif);font-size:0.85rem;padding:0.5rem 1.2rem;border-radius:4px;cursor:pointer;transition:all 0.2s}
+.btn-config:hover{background:rgba(201,162,39,0.08);border-color:rgba(201,162,39,0.5);color:var(--color-gold)}

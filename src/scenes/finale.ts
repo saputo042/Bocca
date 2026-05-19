@@ -5,6 +5,7 @@ import { TAROT_SYMBOLS } from '../data/tarot';
 import {
   getState, resetState, navigateTo,
   typewriter, createParticles, sleep, fadeIn,
+  type GameState,
 } from '../utils/gameState';
 import { playSFX, playAmbienceForScene } from '../utils/audio';
 
@@ -17,6 +18,159 @@ const TYPE_COLORS: Record<string, string> = {
   SECRET: '#64748b',
   BAD: '#9b1c1c',
 };
+
+// ===============================
+// 性格ナラティブ生成（「真実の口の裁定」）
+// ===============================
+
+function generatePersonalityNarrative(
+  bf: { O: number; C: number; E: number; A: number; N: number },
+  state: GameState
+): string {
+  const paragraphs: string[] = [];
+
+  // 支配的な軸と最弱軸を特定
+  const traits = [
+    { key: 'O', val: bf.O },
+    { key: 'C', val: bf.C },
+    { key: 'E', val: bf.E },
+    { key: 'A', val: bf.A },
+    { key: 'N', val: bf.N },
+  ];
+  const sorted = [...traits].sort((a, b) => b.val - a.val);
+  const dom = sorted[0].key;
+  const sub = sorted[1].key;
+  const weak = sorted[4].key;
+
+  // ── 第1段落：本質の宣告 ──
+  const coreMap: Record<string, string> = {
+    O: 'お前の本質は「好奇心」だ。未知の扉の前で躊躇わない——それが旅を通してお前を動かし続けた衝動だ。新しいものへの渇望は、時に無謀さと見分けがつかない。しかしその本能こそが、多くの者が諦めた先へお前を導く。',
+    C: 'お前の本質は「意志」だ。決めたことをやり遂げる力——それが旅の基軸だった。混沌の中でも秩序を見出そうとする執念が、幾つもの試練を乗り越えさせた。完璧主義の鎧は強いが、時に重い。',
+    E: 'お前の本質は「熱量」だ。他者との摩擦の中でこそ輝く——旅を通じてお前が最も生きていた瞬間は、何かと対峙した瞬間だった。孤独よりも接触を、静よりも動を——それがお前の燃料だ。',
+    A: 'お前の本質は「繋がり」だ。他者を感じ、共鳴し、手を差し伸べる——その衝動が旅の判断を決定づけた。その共感は才能だ。しかし問う——どこまでが本当の優しさで、どこからが自分を守る盾だったか。',
+    N: 'お前の本質は「感度」だ。痛みも歓びも、人より深く感じる。その感情の振れ幅が判断を揺らすこともある——しかし同時に、他の者が気づかない小さな変化を捉える力でもある。感じやすさとは、弱さではない。',
+  };
+
+  const coreDesc = coreMap[dom];
+  if (coreDesc) {
+    // 2位の軸で修飾
+    const subAdditions: Record<string, Record<string, string>> = {
+      O: {
+        C: 'そしてお前の好奇心には、珍しく計画性が伴う。ただ突き進むだけでなく、地図を持って踏み込む探索者だ。',
+        E: 'その好奇心は、他者との交流でより燃え盛る。一人で黙考するより、誰かと話す中でひらめく型だ。',
+        A: 'その好奇心は、相手を深く知ることへの渇望でもある。人間そのものへの興味——それが強い。',
+        N: 'その好奇心には、感情的な繊細さが混じっている。感動しやすく、傷つきやすい——だがそれがお前の観察眼を鋭くする。',
+      },
+      C: {
+        O: 'しかしお前の意志の根底には、知ることへの欲がある。規律と好奇心——その組み合わせは稀だ。',
+        E: 'お前の誠実さは、他者の前で最も輝く。一人での達成より、誰かと共に目標を達成することに満足を見出す。',
+        A: '誠実さと協調性——お前は約束を守り、他者を傷つけることを嫌う。その信頼感は、かけがえない資産だ。',
+        N: '強い意志の裏に、感情の揺れがある。揺れを知っているからこそ、規律で自分を縛る——そういう人間だ。',
+      },
+      E: {
+        O: '外向的なエネルギーに、好奇心が加わる。新しい人・場所・体験を求めて動き続けるタイプだ。',
+        C: '外向性に誠実さが加わると、周囲への影響力が増す。お前が動けば、周りも動く。',
+        A: '外向性と協調性——社交の達人だ。集団の中でエネルギーを発揮し、周囲を引き上げる力がある。',
+        N: '外向きのエネルギーと感情の揺れが共存する。表では明るく、内では複雑——その二面性がお前の深さだ。',
+      },
+      A: {
+        O: '共感に好奇心が加わる——お前は人間そのものへの興味が尽きない。他者の内面を理解することに喜びを覚える。',
+        C: '共感と誠実さ——お前が信頼される理由は、その組み合わせだ。言ったことをやる、感じたことを大切にする。',
+        E: '協調性と外向性の組み合わせは、自然なリーダーを生む。お前は命令ではなく、共感で人を動かす。',
+        N: '共感が深く、感情も揺れやすい。他者の痛みを自分のものとして感じてしまう——その重さがお前を削ることもある。',
+      },
+      N: {
+        O: '感情の揺れに、好奇心が混じる。不安の中にも「これはどういうことか」という知的衝動が湧く——そのエネルギーが迷宮を抜けさせた。',
+        C: '感情的な揺れを、意志の力で制御しようとする。そのせめぎ合いがお前を駆り立てる原動力だ。',
+        E: '感情が表に出やすく、他者との摩擦も多い。しかしその正直さが、深い繋がりを生むこともある。',
+        A: '感情が豊かで、共感も深い。お前は他者の痛みを自分のものとして感じる——それが重荷にも、財産にもなる。',
+      },
+    };
+    const addition = subAdditions[dom]?.[sub] ?? '';
+    paragraphs.push(coreDesc + (addition ? ' ' + addition : ''));
+  } else {
+    paragraphs.push('お前の性格は均衡している。特定の型に収まらず、状況に応じて異なる顔を見せる。その適応力は強みだが、自分の核心が見えにくいとも言える。');
+  }
+
+  // ── 第2段落：プレイ選択の読み解き ──
+  const observations: string[] = [];
+
+  // 犠牲パターン
+  if (state.sacrificeCount === 0) {
+    observations.push('旅を通じて、お前は誰一人として犠牲にしなかった。それは深い愛着か、あるいは選べない恐れか——どちらであれ、全員が生き残ったという事実は変わらない。');
+  } else if (state.sacrificeCount === 1) {
+    const first = state.servants.find(s => s.id === state.firstSacrificedId);
+    observations.push(`${first ? `${first.name}——` : ''}一体のみを差し出した。その一つの決断にお前の全てが凝縮されている。最初の選択こそが、最も素直な自己開示だ。`);
+  } else if (state.sacrificeCount >= 5) {
+    const first = state.servants.find(s => s.id === state.firstSacrificedId);
+    observations.push(`${state.sacrificeCount}体を旅の中で手放した。${first ? `最初に差し出したのは${first.name}。` : ''}それだけの決断を下せる者——お前は何かに駆り立てられていたか、それとも計算だったか。残された従者はいまも問いに答えを求めている。`);
+  } else {
+    const first = state.servants.find(s => s.id === state.firstSacrificedId);
+    observations.push(`${state.sacrificeCount}体の従者を旅の中で手放した。${first ? `最初に差し出したのは${first.name}——` : ''}その選択の積み重ねが、お前という人間を語る。`);
+  }
+
+  // 孤児の選択
+  if (state.orphanChoice === 'ignore') {
+    observations.push('孤児を無視した。急いでいたのか、信じなかったのか——理由は何であれ、その瞬間お前は閉じることを選んだ。人間は完全に開いていることはできない。それでいい。');
+  } else if (state.orphanChoice === 'talk') {
+    observations.push('孤児に話しかけた。見知らぬ子どもに時間を割くその判断——計算ではなかったはずだ。本能がそうさせた。');
+  } else if (state.orphanChoice === 'money') {
+    observations.push('孤児にコインを渡した。言葉よりも行動で示す——それがお前のやり方だ。');
+  } else if (state.orphanChoice === 'guide') {
+    observations.push('孤児に案内を頼んだ。助けを求めることを恥じない者は、内側に強さを持つ。');
+  }
+
+  // ST-08 裏切り後の信頼
+  if (state.st08TrustAfterBetrayal === false) {
+    observations.push('従者が嘘をついた後、お前はその助言を切り捨てた。一度傷つけられた信頼を再び与えることを、お前は拒んだ。');
+  } else if (state.st08TrustAfterBetrayal === true) {
+    observations.push('裏切りの後でも、お前はもう一度従者を信じた。それを無謀と呼ぶ者もいる。しかしその選択が、時に最も深い繋がりを生む。');
+  }
+
+  if (observations.length > 0) {
+    paragraphs.push(observations.join('　'));
+  }
+
+  // ── 第3段落：矛盾・影・深層 ──
+  const contradictions: string[] = [];
+
+  if (bf.A > 0.6 && state.orphanChoice === 'ignore') {
+    contradictions.push('協調性が高いはずのお前が、孤児を無視した。理想と行動の乖離——それが人間だ。完璧な共感など存在しない。お前はただ、その瞬間疲れていたのかもしれない。');
+  } else if (bf.A < 0.35 && (state.orphanChoice === 'talk' || state.orphanChoice === 'money')) {
+    contradictions.push('独立心が強く競争的なはずのお前が、孤児に手を差し伸べた。スコアが語れないものを、お前は持っている。');
+  }
+
+  if (bf.N > 0.6 && state.sacrificeCount === 0) {
+    contradictions.push('感情的に揺れやすいお前が、一体も手放さなかった。その執着——守り抜こうとする感情的な強さ——がお前の真の姿かもしれない。');
+  } else if (bf.N < 0.35 && state.sacrificeCount >= 4) {
+    contradictions.push('感情的に安定したお前が、躊躇なく多くを切り捨てた。それを冷静と呼ぶか、冷淡と呼ぶか——答える義務はない。ただ問うべきだ：その判断に後悔はないか、と。');
+  }
+
+  if (bf.C > 0.65 && state.stageLog.some(l => l.outcome === 'fail')) {
+    contradictions.push('計画性が高いお前も、失敗した。それが旅だ。完璧な意志も、予測不能な現実には折れる。折れた経験が、お前を本当に強くする。');
+  }
+
+  if (bf.O < 0.35 && state.stageLog.filter(l => l.outcome === 'success').length >= 6) {
+    contradictions.push('保守的で安定を好むはずのお前が、多くの試練を乗り越えた。数字が語れない「地力」がお前にはある。');
+  }
+
+  if (contradictions.length > 0) {
+    paragraphs.push(contradictions[0]);
+  }
+
+  // ── 第4段落：盲点・影の軸 ──
+  const shadowMap: Record<string, string> = {
+    O: '弱点は「根付き」だ。新しいものを追い続けるお前は、一つのものを深く掘り下げることを後回しにしがちだ。探索は力だが、根を張ることも力だ。',
+    C: '弱点は「硬直」だ。計画に縛られすぎると、予期しない変化に対応できない。規律が時に、可能性の扉を閉じる。',
+    E: '弱点は「静寂の中の自己」だ。誰もいない場所で、お前はどれだけ自分と向き合えるか。熱量の源が他者に依存する限り、孤独は常に脅威となる。',
+    A: '弱点は「自己の喪失」だ。他者に合わせ続けるうちに、自分が何を望むか見えなくなることがある。共感は武器だが——お前自身の境界線はどこにある？',
+    N: '弱点は「消耗」だ。全てを深く感じるお前は、感情的疲弊に晒されやすい。感じる力を守るために、時に壁が必要だ。それは冷たさではなく、自衛だ。',
+  };
+  const shadowDesc = shadowMap[weak];
+  if (shadowDesc) paragraphs.push(shadowDesc);
+
+  return paragraphs.filter(Boolean).map(p => `<p class="personality-para">${p}</p>`).join('');
+}
 
 function bfBar(label: string, value: number, color: string): string {
   const pct = Math.round(value * 100);
@@ -31,20 +185,6 @@ function bfBar(label: string, value: number, color: string): string {
   `;
 }
 
-function bfPersonality(bf: { O: number; C: number; E: number; A: number; N: number }): string {
-  const parts: string[] = [];
-  if (bf.O > 0.65) parts.push('変化や新体験に対して開かれている（高開放性）');
-  else if (bf.O < 0.35) parts.push('慣れ親しんだ環境と安定を好む（低開放性）');
-  if (bf.C > 0.65) parts.push('計画的・着実に目標へ向かう（高誠実性）');
-  else if (bf.C < 0.35) parts.push('柔軟で即興的——規律より自由（低誠実性）');
-  if (bf.E > 0.65) parts.push('他者との交流でエネルギーを得る（高外向性）');
-  else if (bf.E < 0.35) parts.push('一人の時間で回復する内省型（低外向性）');
-  if (bf.A > 0.65) parts.push('共感・利他・協調を重視する（高協調性）');
-  else if (bf.A < 0.35) parts.push('競争的・自己主張が強い（低協調性）');
-  if (bf.N > 0.65) parts.push('感情が揺れやすく、ストレスに敏感（高神経症傾向）');
-  else if (bf.N < 0.35) parts.push('感情的に安定しており、ストレス耐性が高い（低神経症傾向）');
-  return parts.length > 0 ? parts.join('。') + '。' : '各軸が均衡しており、特定の傾向が突出していない。';
-}
 
 function servantChip(s: { id: number; name: string; skill: string }, alive: boolean): string {
   return `
@@ -100,9 +240,9 @@ export function renderFinaleScene(container: HTMLElement): void {
           ` : ''}
         </div>
 
-        <!-- Big Five -->
+        <!-- Big Five + 性格裁定 -->
         <div class="report-section report-bigfive-primary" id="section-bigfive" style="opacity:0">
-          <div class="report-section-label">Big Five 性格診断 — Scientific Profile</div>
+          <div class="report-section-label">真実の口は見ていた</div>
           <div class="bigfive-bars">
             ${bfBar('開放性 (O)', bf.O, '#8b5cf6')}
             ${bfBar('誠実性 (C)', bf.C, '#3b82f6')}
@@ -110,10 +250,13 @@ export function renderFinaleScene(container: HTMLElement): void {
             ${bfBar('協調性 (A)', bf.A, '#10b981')}
             ${bfBar('神経症傾向 (N)', bf.N, '#ef4444')}
           </div>
-          <p class="report-text">${bfPersonality(bf)}</p>
-          <p class="report-text report-note">
-            この診断はゲーム体験に基づく自己洞察ツールです。医療・臨床診断の代替にはなりません。
-          </p>
+          <div class="personality-reading">
+            <div class="personality-oracle-line">── 口の裁定 ──</div>
+            <div class="personality-narrative" id="personality-narrative">
+              ${generatePersonalityNarrative(bf, state)}
+            </div>
+          </div>
+          <p class="report-note-small">※ゲーム体験に基づく自己洞察。医療診断の代替ではありません。</p>
         </div>
 
         <!-- 旅の記録 -->
