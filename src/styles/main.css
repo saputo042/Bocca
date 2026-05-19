@@ -4561,6 +4561,70 @@ body {
 .sacrifice-label{font-size:0.82rem;color:#f87171;text-align:center;font-weight:600}
 .endurance-label{font-size:0.82rem;color:var(--color-gold);text-align:center;font-weight:600}
 
+/* ST-01 大型HPバー */
+.st01-hp-large {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: rgba(5, 5, 9, 0.9);
+  border-top: 1px solid rgba(155, 28, 28, 0.5);
+  margin-top: 1rem;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+}
+.st01-hp-large-label {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: #ef4444;
+  letter-spacing: 0.2em;
+  font-weight: 700;
+  flex-shrink: 0;
+  min-width: 28px;
+}
+.st01-hp-large-track {
+  flex: 1;
+  height: 20px;
+  background: rgba(155, 28, 28, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(155, 28, 28, 0.35);
+}
+.st01-hp-large-fill {
+  height: 100%;
+  background: linear-gradient(to right, #7f1d1d, #ef4444);
+  border-radius: 3px;
+  transition: width 0.15s linear;
+}
+.st01-hp-large-value {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 70px;
+  text-align: right;
+}
+
+/* ST-01 痛み点滅オーバーレイ */
+.pain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 49;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(155, 28, 28, 0.5) 100%);
+  transition: opacity 0.1s ease;
+}
+.pain-overlay.active {
+  animation: pain-pulse 0.45s ease-in-out infinite;
+}
+@keyframes pain-pulse {
+  0%, 100% { opacity: 0; }
+  50%       { opacity: 1; }
+}
+
 /* =============================================
    ゲーム設定シーン
 ============================================= */

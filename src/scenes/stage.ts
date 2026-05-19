@@ -179,7 +179,10 @@ async function runStage01(container: HTMLElement): Promise<void> {
   // N最低の従者（生贄候補）
   const targetServant = findByDimension(state.aliveServants, 'N', 'min');
 
+  const initHpPct = Math.max(0, Math.round((state.hp / state.maxHp) * 100));
+
   setMechanic(`
+    <div class="pain-overlay" id="pain-overlay"></div>
     <div class="thorn-scene" id="thorn-scene">
       <div class="thorn-side thorn-left" id="thorn-left"></div>
       <div class="thorn-center">
@@ -217,6 +220,15 @@ async function runStage01(container: HTMLElement): Promise<void> {
         </button>
       </div>
     ` : ''}
+
+    <div class="st01-hp-large">
+      <span class="st01-hp-large-label">HP</span>
+      <div class="st01-hp-large-track">
+        <div class="st01-hp-large-fill" id="st01-hp-fill" style="width:${initHpPct}%"></div>
+      </div>
+      <span class="st01-hp-large-value" id="st01-hp-val">${state.hp} / ${state.maxHp}</span>
+    </div>
+
     <div class="stage-result" id="stage-result" style="display:none"></div>
   `);
 
@@ -243,7 +255,12 @@ async function runStage01(container: HTMLElement): Promise<void> {
     changeHp(-dmgPerTick);
     totalDamage += dmgPerTick;
     updateHpDisplay();
-    flashDamage();
+    // 大きいHPバー更新
+    const bigFill = document.getElementById('st01-hp-fill');
+    const bigVal = document.getElementById('st01-hp-val');
+    const hpPct = Math.max(0, Math.round((state.hp / state.maxHp) * 100));
+    if (bigFill) bigFill.style.width = `${hpPct}%`;
+    if (bigVal) bigVal.textContent = `${state.hp} / ${state.maxHp}`;
 
     if (state.hp <= 0) {
       finish(false, true, null);
@@ -286,6 +303,7 @@ async function runStage01(container: HTMLElement): Promise<void> {
     clearInterval(holdTicker);
     clearInterval(sacrificeTicker);
     docCleanup();
+    document.getElementById('pain-overlay')?.classList.remove('active');
 
     if (dead) {
       showGameOver(container);
@@ -309,12 +327,14 @@ async function runStage01(container: HTMLElement): Promise<void> {
     if (!gameActive || isHolding) return;
     isHolding = true;
     document.getElementById('btn-hold')?.classList.add('active');
+    document.getElementById('pain-overlay')?.classList.add('active');
   }
 
   function stopHolding(): void {
     if (!isHolding) return;
     isHolding = false;
     document.getElementById('btn-hold')?.classList.remove('active');
+    document.getElementById('pain-overlay')?.classList.remove('active');
   }
 
   function docCleanup(): void {
