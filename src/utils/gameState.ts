@@ -3,6 +3,7 @@
 import type { BigFiveScores } from '../data/bigfive';
 import type { TarotServant } from '../data/tarot';
 import { GAME_CONFIG } from '../data/gameConfig';
+import type { RhythmLogEntry } from './rhythm';
 
 // ===============================
 // 型定義
@@ -40,6 +41,8 @@ export interface GameState {
   orphanChoice: string | null;
   st08TrustAfterBetrayal: boolean | null;
   stageLog: StageResult[];
+  rhythmLog: RhythmLogEntry[];
+  finaleOnBeat: boolean;
 }
 
 // ===============================
@@ -70,6 +73,8 @@ function createInitial(): GameState {
     orphanChoice: null,
     st08TrustAfterBetrayal: null,
     stageLog: [],
+    rhythmLog: [],
+    finaleOnBeat: false,
   };
 }
 
@@ -108,6 +113,10 @@ export function sacrificeServant(servantId: number): TarotServant | null {
 
 export function addStageLog(result: StageResult): void {
   _state.stageLog.push(result);
+}
+
+export function logRhythm(entry: RhythmLogEntry): void {
+  _state.rhythmLog.push(entry);
 }
 
 export function recordStageResult(result: StageResult): void {

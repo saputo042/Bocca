@@ -2,12 +2,13 @@
 
 import {
   navigateTo, getState, resetGameState, changeHp, sacrificeServant, recordStageResult,
-  advanceStage, sleep, typewriter, createParticles, addGold, acquireNextServant,
+  advanceStage, sleep, typewriter, createParticles, addGold, acquireNextServant, logRhythm,
 } from '../utils/gameState';
 import { findByDimension, TAROT_SYMBOLS, type TarotServant } from '../data/tarot';
 import { STAGES } from '../data/stages';
-import { getLeverConfig } from '../data/gameConfig';
-import { playSFX } from '../utils/audio';
+import { getLeverConfig, GAME_CONFIG } from '../data/gameConfig';
+import { playSFX, switchBGMTrack } from '../utils/audio';
+import { checkOnBeat, flashActionBeat, playMotif } from '../utils/rhythm';
 
 // ===============================
 // 共通ヘルパー
@@ -241,6 +242,7 @@ async function runStage01(container: HTMLElement): Promise<void> {
   let servantSacrificed = false;
   const shownMilestones = new Set<number>();
   let dialogueLocked = false;
+  let onBeatDmgAccum = 0; // On-Beat時のHPコスト半減用アキュムレータ
 
   async function showServantLine(text: string): Promise<void> {
     if (dialogueLocked) return;
@@ -265,23 +267,37 @@ async function runStage01(container: HTMLElement): Promise<void> {
     if (!gameActive) return;
 
     const baseAdv = 0.5;
-    const holdAdv = isHolding ? 1.5 : 0;
-    progress = Math.min(100, progress + baseAdv + holdAdv);
-
-    const bar = document.getElementById('st01-progress-bar');
-    const pctEl = document.getElementById('st01-progress-pct');
-    if (bar) bar.style.width = `${progress}%`;
-    if (pctEl) pctEl.textContent = `${Math.round(progress)}%`;
+    let holdAdv = 0;
 
     if (isHolding) {
-      changeHp(-1);
-      totalPlayerDmg++;
+      const { isOnBeat } = checkOnBeat();
+      holdAdv = isOnBeat ? 1.95 : 1.5; // On-Beat: +30%効率
+
+      // HP cost: On-Beatは半減（0.5ずつ積算し1を超えたら-1HP）
+      onBeatDmgAccum += isOnBeat ? 0.5 : 1.0;
+      if (onBeatDmgAccum >= 1) {
+        changeHp(-1);
+        totalPlayerDmg++;
+        onBeatDmgAccum -= 1;
+      }
+
+      if (isOnBeat) {
+        flashActionBeat(true);
+      }
+
       updateHpDisplay();
       const bigFill = document.getElementById('st01-hp-fill');
       const bigVal = document.getElementById('st01-hp-val');
       if (bigFill) bigFill.style.width = `${Math.max(0, Math.round((state.hp / state.maxHp) * 100))}%`;
       if (bigVal) bigVal.textContent = `${state.hp} / ${state.maxHp}`;
     }
+
+    progress = Math.min(100, progress + baseAdv + holdAdv);
+
+    const bar = document.getElementById('st01-progress-bar');
+    const pctEl = document.getElementById('st01-progress-pct');
+    if (bar) bar.style.width = `${progress}%`;
+    if (pctEl) pctEl.textContent = `${Math.round(progress)}%`;
 
     for (const ms of [25, 50, 75]) {
       if (progress >= ms && !shownMilestones.has(ms) && rowingServant) {
@@ -508,11 +524,12 @@ async function runStage02(container: HTMLElement): Promise<void> {
         gameActive = false;
         cancelAnimationFrame(rafId);
         const p = Math.min(1, elapsedMs / durationMs);
+        const dodgeElapsedMs = elapsedMs;
         resolveRound();
         if (p < SWEET_SPOT_MIN) {
           onEarlyDodge();
         } else if (p <= SWEET_SPOT_MAX) {
-          onGoodDodge();
+          onGoodDodge(dodgeElapsedMs);
         } else {
           onLateDodge();
         }
@@ -532,16 +549,17 @@ async function runStage02(container: HTMLElement): Promise<void> {
     await runDogApproach(5000, true);
   }
 
-  async function onGoodDodge(): Promise<void> {
+  async function onGoodDodge(dodgeElapsedMs: number): Promise<void> {
     if (finished) return;
     finished = true;
     playSFX('reveal');
+    const goldEarned = Math.floor(dodgeElapsedMs / 1000 * GAME_CONFIG.st02.goldPerSec);
     const attacker = newServant1 ?? newServant2 ?? state.aliveServants[0];
     const msg = attacker
-      ? `${attacker.name}が犬に飛びかかり撃退した！　道が開けた。`
-      : '間一髪で避けた。犬は諦めて引いていった。';
-    await endStage02(msg, 'success', null, 0, 15);
-    addGold(15);
+      ? `${attacker.name}が犬に飛びかかり撃退した！　道が開けた。金貨+${goldEarned}`
+      : `間一髪で避けた。犬は諦めて引いていった。金貨+${goldEarned}`;
+    await endStage02(msg, 'success', null, 0, goldEarned);
+    addGold(goldEarned);
   }
 
   async function onLateDodge(): Promise<void> {
@@ -975,77 +993,106 @@ async function runStage05(container: HTMLElement): Promise<void> {
 async function runStage06(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[5];
+  const prices = GAME_CONFIG.st06.itemPrices;
 
   container.innerHTML = stageLayout(6, stageData.name, stageData.area);
 
   await sleep(300);
-  await narrateText('市場。旅の補給ができる最後のチャンスだ。2つまで選べる。', 40);
+  await narrateText('市場。旅の補給ができる最後のチャンスだ。所持金の範囲で選べ。', 40);
   await sleep(600);
 
   const items = [
-    { id: 'potion', icon: '&#x1F9EA;', name: '回復薬', desc: '後のステージでHP+30' },
-    { id: 'sword',  icon: '&#x2694;',  name: '剣',     desc: 'ボス攻撃力UP、ダメージ減少' },
-    { id: 'key',    icon: '&#x1F5DD;', name: '鍵',     desc: 'ST-07の戦闘をスキップ' },
-    { id: 'food',   icon: '&#x1F35E;', name: '携帯食', desc: '即時HP+10' },
+    { id: 'potion', icon: '&#x1F9EA;', name: '回復薬', desc: '後のステージでHP+30', price: prices.potion },
+    { id: 'sword',  icon: '&#x2694;',  name: '剣',     desc: 'ボス攻撃力UP、ダメージ減少', price: prices.sword },
+    { id: 'key',    icon: '&#x1F5DD;', name: '鍵',     desc: 'ST-07の戦闘をスキップ', price: prices.key },
+    { id: 'food',   icon: '&#x1F35E;', name: '携帯食', desc: '即時HP+10', price: prices.food },
   ];
-
-  setMechanic(`
-    <p class="mechanic-hint">2つまで選んで確定する</p>
-    <div class="item-shop-grid">
-      ${items.map(item => `
-        <div class="item-card" id="item-${item.id}" data-id="${item.id}">
-          <div class="item-icon">${item.icon}</div>
-          <div class="item-name">${item.name}</div>
-          <div class="item-desc">${item.desc}</div>
-        </div>
-      `).join('')}
-    </div>
-    <button class="btn-primary" id="btn-confirm-shop" style="margin-top:1rem">確定する</button>
-    <div class="stage-result" id="stage-result" style="display:none"></div>
-  `);
 
   const selected = new Set<string>();
 
-  document.querySelectorAll('.item-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const id = (card as HTMLElement).dataset.id!;
-      if (selected.has(id)) {
-        selected.delete(id);
-        card.classList.remove('selected');
-      } else if (selected.size < 2) {
-        selected.add(id);
-        card.classList.add('selected');
-      }
+  function spentGold(): number {
+    return [...selected].reduce((sum, id) => sum + (items.find(i => i.id === id)?.price ?? 0), 0);
+  }
+
+  function remainingGold(): number {
+    return state.gold - spentGold();
+  }
+
+  function renderShop(): void {
+    const remaining = remainingGold();
+    setMechanic(`
+      <div class="shop-gold-display">
+        所持金: <span id="shop-gold-total">${state.gold}</span>枚
+        <span class="shop-gold-arrow">→</span>
+        残り: <span id="shop-gold-remaining">${remaining}</span>枚
+      </div>
+      <div class="item-shop-grid">
+        ${items.map(item => {
+          const isSelected = selected.has(item.id);
+          const canAfford = isSelected || remaining >= item.price;
+          return `
+            <div class="item-card ${isSelected ? 'selected' : ''} ${canAfford ? '' : 'cant-afford'}"
+                 id="item-${item.id}" data-id="${item.id}">
+              <div class="item-icon">${item.icon}</div>
+              <div class="item-name">${item.name}</div>
+              <div class="item-desc">${item.desc}</div>
+              <div class="item-price">${item.price}枚</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <button class="btn-primary" id="btn-confirm-shop" style="margin-top:1rem">確定する</button>
+      <div class="stage-result" id="stage-result" style="display:none"></div>
+    `);
+
+    document.querySelectorAll('.item-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const id = (card as HTMLElement).dataset.id!;
+        if (selected.has(id)) {
+          selected.delete(id);
+        } else {
+          const itemPrice = items.find(i => i.id === id)?.price ?? 0;
+          if (remainingGold() >= itemPrice) {
+            selected.add(id);
+          }
+        }
+        renderShop();
+      });
     });
-  });
 
-  document.getElementById('btn-confirm-shop')?.addEventListener('click', async () => {
-    let hpGain = 0;
-    selected.forEach(id => {
-      if (id === 'potion') state.hasPotion = true;
-      if (id === 'sword')  state.hasSword  = true;
-      if (id === 'key')    state.hasKey    = true;
-      if (id === 'food')   { changeHp(10); updateHpDisplay(); hpGain = 10; }
+    document.getElementById('btn-confirm-shop')?.addEventListener('click', async () => {
+      const totalCost = spentGold();
+      addGold(-totalCost);
+
+      let hpGain = 0;
+      selected.forEach(id => {
+        if (id === 'potion') state.hasPotion = true;
+        if (id === 'sword')  state.hasSword  = true;
+        if (id === 'key')    state.hasKey    = true;
+        if (id === 'food')   { changeHp(10); updateHpDisplay(); hpGain = 10; }
+      });
+
+      const resultEl = document.getElementById('stage-result')!;
+      resultEl.style.display = 'block';
+
+      const names = [...selected].map(id => items.find(i => i.id === id)?.name ?? '').filter(Boolean);
+      const msg = names.length > 0
+        ? `${names.join('・')} を手に入れた（${totalCost}枚）。${hpGain > 0 ? `HP +${hpGain}` : ''}`
+        : '何も買わなかった。金貨を温存する。';
+
+      await typewriter(resultEl, msg, 40);
+
+      recordStageResult({
+        stageId: 6, stageName: stageData.name,
+        outcome: 'item', hpDelta: hpGain,
+      });
+
+      await sleep(800);
+      addNextButton(container, resultEl);
     });
+  }
 
-    const resultEl = document.getElementById('stage-result')!;
-    resultEl.style.display = 'block';
-
-    const names = [...selected].map(id => items.find(i => i.id === id)?.name ?? '').filter(Boolean);
-    const msg = names.length > 0
-      ? `${names.join('・')} を手に入れた。${hpGain > 0 ? `HP +${hpGain}` : ''}`
-      : '何も買わなかった。';
-
-    await typewriter(resultEl, msg, 40);
-
-    recordStageResult({
-      stageId: 6, stageName: stageData.name,
-      outcome: 'item', hpDelta: hpGain,
-    });
-
-    await sleep(800);
-    addNextButton(container, resultEl);
-  });
+  renderShop();
 }
 
 // ===============================
@@ -1294,6 +1341,9 @@ async function runStage08(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[7];
 
+  // クライマックスBGMに切替（ST-08〜09）
+  switchBGMTrack('climax');
+
   container.innerHTML = stageLayout(8, stageData.name, stageData.area);
   createParticles(document.getElementById('stage-particles')!, 15);
 
@@ -1417,22 +1467,61 @@ async function runStage08(container: HTMLElement): Promise<void> {
 }
 
 // ===============================
-// ST-09 真実の口（最終ボス）
+// ST-09 真実の口（最終ボス・5楽章構成）
 // ===============================
+// Phase 1 Grave（宣告）: 強制ナラティブ
+// Phase 2 Andante（問い）: レバーのみ、On-Beat=2倍ダメージ
+// Phase 3 Allegro（決断）: HP60%以下で生贄解放
+// Phase 4 Adagio（沈黙）: 従者1体で発動する静寂
+// Phase 5 Finale（終止）: 最後の一撃のOn-Beat判定
+
+function buildGraveLines(state: ReturnType<typeof getState>): string[] {
+  const lines: string[] = [];
+  if (state.sacrificeCount > 0) {
+    const first = state.servants.find(s => s.id === state.firstSacrificedId);
+    lines.push(first
+      ? `最初に差し出したのは${first.name}——お前は${state.sacrificeCount}体を手放した`
+      : `お前は${state.sacrificeCount}体を手放した`);
+  } else {
+    lines.push('誰一人として犠牲にしなかった。それはどういう意味だ');
+  }
+  if (state.orphanChoice === 'joined') {
+    lines.push('孤児に手を差し伸べた');
+  } else if (state.orphanChoice === 'cold') {
+    lines.push('孤独な子どもの前を、通り過ぎた');
+  }
+  if (state.st08TrustAfterBetrayal === true) {
+    lines.push('裏切りの後でも、従者を信じることを選んだ');
+  } else if (state.st08TrustAfterBetrayal === false) {
+    lines.push('一度傷ついた信頼を、捨てた');
+  }
+  return lines.slice(0, 3);
+}
 
 async function runStage09(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[8];
   const cfg = getLeverConfig().battle.st09;
 
+  // クライマックスBGM（ST-08で切替済みだがここでも保証）
+  switchBGMTrack('climax');
+
   container.innerHTML = stageLayout(9, stageData.name, stageData.area);
   createParticles(document.getElementById('stage-particles')!, 30);
 
+  // ── Phase 1: Grave（宣告）── 強制ナラティブ ──
   await sleep(300);
-  await narrateText('問の間。高さ3mの真実の口。これまでの選択が映し出される。「お前は何者だ」', 40);
+  await narrateText('問の間。高さ3mの真実の口。これまでの選択が映し出される。', 45);
   await sleep(500);
+  for (const line of buildGraveLines(state)) {
+    await narrateText(`「${line}」`, 55);
+    await sleep(700);
+  }
+  await sleep(400);
+  await narrateText('「お前は何者だ」', 70);
+  await sleep(800);
 
-  // 覚悟の間（最終決戦前の静寂）
+  // 覚悟の間
   await new Promise<void>(resolve => {
     const narrativeEl = document.getElementById('stage-narrative');
     if (narrativeEl) {
@@ -1442,9 +1531,7 @@ async function runStage09(container: HTMLElement): Promise<void> {
       readyBtn.style.marginTop = '1.5rem';
       readyBtn.addEventListener('click', () => { readyBtn.remove(); resolve(); }, { once: true });
       narrativeEl.appendChild(readyBtn);
-    } else {
-      resolve();
-    }
+    } else { resolve(); }
   });
   await sleep(500);
 
@@ -1452,9 +1539,19 @@ async function runStage09(container: HTMLElement): Promise<void> {
   let bossHp = bossMaxHp;
   let roundActive = false;
   let leverCancelFn: (() => void) | null = null;
+  let currentPhase = 2;
+  let adagioTriggered = false;
+
+  const PHASE_LABELS: Record<number, string> = {
+    2: '第2楽章 — 問い（Andante）',
+    3: '第3楽章 — 決断（Allegro）',
+    4: '第4楽章 — 沈黙（Adagio）',
+    5: '第5楽章 — 終止（Finale）',
+  };
 
   function renderBossUI(): void {
     setMechanic(`
+      <div class="boss-phase-badge" id="boss-phase-badge">${PHASE_LABELS[2]}</div>
       <div class="boss-hp-bar">
         <span class="boss-hp-label">&#x1F62E;&#x200D;&#x1F4A8; 真実の口</span>
         <div class="hp-bar-container" style="flex:1;margin:0 0.5rem">
@@ -1465,10 +1562,13 @@ async function runStage09(container: HTMLElement): Promise<void> {
       <div class="player-hp-mini">
         <span>あなたのHP: <strong id="boss-player-hp">${state.hp}</strong>/${state.maxHp}</span>
       </div>
-      <p class="boss-status" id="boss-status">攻撃を選べ</p>
+      <p class="boss-status" id="boss-status">拍に合わせてレバーを引け</p>
       <div class="boss-action-row">
-        <button class="btn-attack" id="btn-boss-lever">レバー攻撃<br><small>（5回→${cfg.leverDamage}dmg）</small></button>
-        <button class="btn-sacrifice" id="btn-boss-sacrifice">従者を投じる<br><small>（${cfg.sacrificeDamage}dmg）</small></button>
+        <button class="btn-attack" id="btn-boss-lever">レバー攻撃<br><small>（5回→${cfg.leverDamage}dmg / 拍頭2倍）</small></button>
+        <button class="btn-sacrifice" id="btn-boss-sacrifice"
+          style="opacity:0.35;pointer-events:none" disabled>
+          従者を投じる<br><small>（第3楽章で解放）</small>
+        </button>
         ${state.hasPotion ? `<button class="btn-primary" id="btn-boss-potion">&#x1F9EA; 回復薬</button>` : ''}
       </div>
       <div class="boss-click-counter" id="boss-click-counter" style="display:none">
@@ -1476,7 +1576,6 @@ async function runStage09(container: HTMLElement): Promise<void> {
       </div>
       <div class="stage-result" id="stage-result" style="display:none"></div>
     `);
-
     attachBossListeners();
   }
 
@@ -1497,9 +1596,60 @@ async function runStage09(container: HTMLElement): Promise<void> {
     if (el) el.textContent = text;
   }
 
+  function setPhaseBadge(phase: number): void {
+    const el = document.getElementById('boss-phase-badge');
+    if (el) el.textContent = PHASE_LABELS[phase] ?? '';
+  }
+
+  function unlockSacrifice(): void {
+    const sacBtn = document.getElementById('btn-boss-sacrifice') as HTMLButtonElement | null;
+    if (sacBtn) {
+      sacBtn.disabled = false;
+      sacBtn.style.opacity = '1';
+      sacBtn.style.pointerEvents = 'auto';
+      sacBtn.innerHTML = `従者を投じる<br><small>（${cfg.sacrificeDamage}dmg）</small>`;
+    }
+  }
+
+  function checkPhaseTransition(): void {
+    if (currentPhase === 2 && bossHp <= bossMaxHp * 0.6) {
+      currentPhase = 3;
+      setPhaseBadge(3);
+      setStatus('判断の時が来た——従者を投じることができる');
+      unlockSacrifice();
+    }
+  }
+
+  async function triggerAdagio(): Promise<void> {
+    currentPhase = 4;
+    setPhaseBadge(4);
+    const leverBtn = document.getElementById('btn-boss-lever') as HTMLButtonElement | null;
+    const sacBtn = document.getElementById('btn-boss-sacrifice') as HTMLButtonElement | null;
+    if (leverBtn) leverBtn.disabled = true;
+    if (sacBtn) sacBtn.disabled = true;
+    setStatus('……');
+    await sleep(1200);
+    setStatus('……最後の一人だ。それでも戦うか。');
+    await sleep(2200);
+    currentPhase = 5;
+    setPhaseBadge(5);
+    setStatus('最後の攻撃——拍に合わせて示せ');
+    if (leverBtn) leverBtn.disabled = false;
+    if (sacBtn) {
+      sacBtn.disabled = false;
+      sacBtn.style.opacity = '1';
+      sacBtn.style.pointerEvents = 'auto';
+    }
+  }
+
   function checkBossDeath(): boolean {
     if (bossHp <= 0) {
+      const { isOnBeat, offsetMs } = checkOnBeat();
       state.bossDefeated = true;
+      state.finaleOnBeat = isOnBeat;
+      logRhythm({ stageId: 9, action: 'finale_blow', beatOffset: offsetMs, isOnBeat });
+      flashActionBeat(isOnBeat);
+      if (isOnBeat) playSFX('onbeat');
       endStage09();
       return true;
     }
@@ -1512,10 +1662,7 @@ async function runStage09(container: HTMLElement): Promise<void> {
     updatePlayerHpMini();
     flashDamage();
     setStatus(`反撃！ HP -${cfg.counterDamage}`);
-    if (state.hp <= 0) {
-      showGameOver(container);
-      return true;
-    }
+    if (state.hp <= 0) { showGameOver(container); return true; }
     return false;
   }
 
@@ -1533,26 +1680,45 @@ async function runStage09(container: HTMLElement): Promise<void> {
 
         let localClicks = 0;
         if (cntEl) cntEl.textContent = '0';
-
         const origText = leverBtn.innerHTML;
         leverBtn.textContent = 'クリック！';
 
         const rapidClick = () => {
           localClicks++;
           if (cntEl) cntEl.textContent = String(localClicks);
+
           if (localClicks >= 5) {
             leverBtn.removeEventListener('click', rapidClick);
             leverCancelFn = null;
             leverBtn.innerHTML = origText;
             if (counterEl) counterEl.style.display = 'none';
 
-            bossHp -= cfg.leverDamage;
+            // On-Beat判定（コンボ完了時）
+            const { isOnBeat } = checkOnBeat();
+            const damage = isOnBeat ? cfg.leverDamage * 2 : cfg.leverDamage;
+            bossHp -= damage;
             updateBossHp();
             playSFX('select');
-            setStatus(`${cfg.leverDamage}ダメージ！`);
+            flashActionBeat(isOnBeat);
+            logRhythm({ stageId: 9, action: 'lever', beatOffset: 0, isOnBeat });
 
+            if (isOnBeat) {
+              setStatus(`On-Beat！ ${damage}ダメージ！（2倍連撃）`);
+              playSFX('onbeat');
+            } else {
+              setStatus(`${damage}ダメージ！`);
+            }
+
+            checkPhaseTransition();
             if (checkBossDeath()) return;
             if (bossCounter()) return;
+
+            if (aliveServants().length === 1 && !adagioTriggered && bossHp > 0) {
+              adagioTriggered = true;
+              roundActive = false;
+              triggerAdagio();
+              return;
+            }
             roundActive = false;
           }
         };
@@ -1572,15 +1738,11 @@ async function runStage09(container: HTMLElement): Promise<void> {
 
     if (sacBtn) {
       sacBtn.addEventListener('click', async () => {
-        // レバー攻撃中でも従者犠牲は割り込み可能
-        if (roundActive && leverCancelFn) {
-          leverCancelFn();
-        }
+        if (currentPhase < 3) return;
+        if (roundActive && leverCancelFn) leverCancelFn();
         if (roundActive) return;
-        if (aliveServants().length === 0) {
-          setStatus('従者がいません');
-          return;
-        }
+        if (aliveServants().length === 0) { setStatus('従者がいません'); return; }
+
         roundActive = true;
         if (leverBtn) leverBtn.disabled = true;
         sacBtn.disabled = true;
@@ -1596,27 +1758,39 @@ async function runStage09(container: HTMLElement): Promise<void> {
         const sac = sacrificeServant(sid);
         playSFX('sacrifice');
 
+        // 従者消滅のライトモチーフ（逆再生）
+        const servant = state.servants.find(s => s.id === sid);
+        if (servant) playMotif(servant.motifNotes, 'reverse');
+
         bossHp -= cfg.sacrificeDamage;
         updateBossHp();
         setStatus(`${sac?.name ?? '従者'}を投じた！ ${cfg.sacrificeDamage}ダメージ！`);
 
-        // If last servant: final blow
+        // 全従者が尽きた場合は即終了
         if (aliveServants().length === 0) {
           bossHp = 0;
-          updateBossHp();
           state.bossDefeated = true;
+          state.finaleOnBeat = false;
+          logRhythm({ stageId: 9, action: 'final_sacrifice', beatOffset: 0, isOnBeat: false });
           endStage09();
           return;
         }
 
+        checkPhaseTransition();
         if (checkBossDeath()) return;
-        // Sacrifice does not trigger counter
+
+        if (aliveServants().length === 1 && !adagioTriggered && bossHp > 0) {
+          adagioTriggered = true;
+          roundActive = false;
+          if (leverBtn) leverBtn.disabled = false;
+          sacBtn.disabled = false;
+          await triggerAdagio();
+          return;
+        }
+
         roundActive = false;
         if (leverBtn) leverBtn.disabled = false;
         sacBtn.disabled = false;
-
-        // Update sacrifice button if no servants left
-        if (aliveServants().length === 0) sacBtn.remove();
       });
     }
 
@@ -1632,13 +1806,11 @@ async function runStage09(container: HTMLElement): Promise<void> {
     await sleep(600);
     const resultEl = document.getElementById('stage-result')!;
     resultEl.style.display = 'block';
-    await typewriter(resultEl, '真実の口が砕け散った。旅が終わる。', 50);
-
-    recordStageResult({
-      stageId: 9, stageName: stageData.name,
-      outcome: 'success', hpDelta: 0,
-    });
-
+    const msg = state.finaleOnBeat
+      ? '拍の瞬間に——真実の口が砕け散った。旅が終わる。'
+      : '真実の口が砕け散った。旅が終わる。';
+    await typewriter(resultEl, msg, 50);
+    recordStageResult({ stageId: 9, stageName: stageData.name, outcome: 'success', hpDelta: 0 });
     await sleep(1000);
     navigateTo('finale');
   }

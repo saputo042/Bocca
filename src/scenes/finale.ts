@@ -169,6 +169,36 @@ function generatePersonalityNarrative(
   const shadowDesc = shadowMap[weak];
   if (shadowDesc) paragraphs.push(shadowDesc);
 
+  // ── 第5段落：鼓動の記録（リズムログ） ──
+  const rhythmLog = state.rhythmLog;
+  if (rhythmLog.length > 0) {
+    const total = rhythmLog.length;
+    const onBeatCount = rhythmLog.filter(e => e.isOnBeat).length;
+    const ratio = onBeatCount / total;
+
+    let rhythmPara = '';
+
+    if (state.finaleOnBeat) {
+      if (ratio >= 0.7) {
+        rhythmPara = `BOCCAは、お前の鼓動を聞いていた。${total}回の行動のうち${onBeatCount}回——拍の瞬間にお前は動いた。そして最後の一撃も、音楽と一致した。内側と外側が合わさるとき、人は何かを超える。`;
+      } else if (ratio >= 0.4) {
+        rhythmPara = `BOCCAは、お前の鼓動を聞いていた。旅を通じてお前のリズムは安定しなかった——しかし最後の瞬間だけは違った。終止符は、拍とともに打たれた。`;
+      } else {
+        rhythmPara = `BOCCAは、お前の鼓動を聞いていた。旅の大半でお前は音楽から外れていた。それでも最後の一音は合わさった——混沌の中に宿る、一瞬の調和だ。`;
+      }
+    } else {
+      if (ratio >= 0.7) {
+        rhythmPara = `BOCCAは、お前の鼓動を聞いていた。${total}回の行動のうち${onBeatCount}回が拍と重なった。しかし最後だけは、ずれた。完璧な演奏者でも、終止符を外すことがある——それが人間だ。`;
+      } else if (ratio >= 0.4) {
+        rhythmPara = `BOCCAは、お前の鼓動を聞いていた。お前のリズムは揺れていた。拍に乗った瞬間もあり、外れた瞬間もあった。その揺らぎが、お前という演奏だ。`;
+      } else {
+        rhythmPara = `BOCCAは、お前の鼓動を聞いていた。お前は旅を通じて、音楽とは別のリズムで動いていた。それが意図だったのか、無意識だったのか——内側の拍数は、お前だけが知っている。`;
+      }
+    }
+
+    if (rhythmPara) paragraphs.push(rhythmPara);
+  }
+
   return paragraphs.filter(Boolean).map(p => `<p class="personality-para">${p}</p>`).join('');
 }
 

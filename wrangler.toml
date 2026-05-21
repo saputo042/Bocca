@@ -1,4 +1,5 @@
 # Cloudflare Pages デプロイ設定
+pages_build_output_dir = "dist"
 
 [build]
   command = "npm run build"
