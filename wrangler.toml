@@ -1,8 +1,2 @@
-# Cloudflare Pages デプロイ設定
+name = "bocca"
 pages_build_output_dir = "dist"
-
-[build]
-  command = "npm run build"
-
-[build.environment]
-  NODE_VERSION = "20"
