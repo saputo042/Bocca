@@ -4799,6 +4799,84 @@ body {
   to   { box-shadow: 0 0 28px rgba(201,162,39,0.60), inset 0 0 18px rgba(201,162,39,0.22); }
 }
 
+/* ST-01 茨障害物コース */
+.st01-track-wrap {
+  width: 100%;
+  max-width: 360px;
+  margin: 0.5rem auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.st01-track-row {
+  display: flex;
+  gap: 4px;
+  height: 180px;
+}
+.st01-lane {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: rgba(10, 10, 20, 0.7);
+  border: 1px solid rgba(201, 162, 39, 0.15);
+  border-radius: 4px 4px 0 0;
+  transition: background 0.15s ease;
+}
+.st01-lane.flash-safe {
+  background: rgba(16, 185, 129, 0.28);
+  border-color: rgba(16, 185, 129, 0.6);
+}
+.st01-lane.flash-hit {
+  background: rgba(239, 68, 68, 0.28);
+  border-color: rgba(239, 68, 68, 0.6);
+}
+.st01-judge-line {
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(to right, transparent, rgba(201,162,39,0.7) 20%, rgba(201,162,39,0.7) 80%, transparent);
+}
+.st01-boat-slots {
+  display: flex;
+  gap: 4px;
+}
+.st01-boat-slot {
+  flex: 1;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  background: rgba(10, 10, 20, 0.5);
+  border: 1px solid rgba(201, 162, 39, 0.1);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  transition: background 0.15s ease;
+}
+.st01-boat-slot.active-slot {
+  background: rgba(201, 162, 39, 0.1);
+  border-color: rgba(201, 162, 39, 0.35);
+}
+.st01-thorn-block {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  animation: st01-thorn-fall linear forwards;
+  pointer-events: none;
+}
+.st01-thorn-inner {
+  display: block;
+  width: 100%;
+  text-align: center;
+  font-size: 1.4rem;
+  line-height: 1.1;
+  user-select: none;
+}
+@keyframes st01-thorn-fall {
+  from { transform: translateY(-65px); }
+  to   { transform: translateY(240px); }
+}
+
 /* ST-04 RPGダイアログシーン */
 .rpg-dialogue-scene {
   display: flex;
