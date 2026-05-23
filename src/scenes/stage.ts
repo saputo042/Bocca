@@ -8,7 +8,7 @@ import { findByDimension, TAROT_SYMBOLS, type TarotServant } from '../data/tarot
 import { STAGES } from '../data/stages';
 import { getLeverConfig, GAME_CONFIG } from '../data/gameConfig';
 import { playSFX, switchBGMTrack } from '../utils/audio';
-import { checkOnBeat, flashActionBeat, playMotif } from '../utils/rhythm';
+import { checkOnBeat, flashActionBeat, playMotif, getBPM } from '../utils/rhythm';
 
 // ===============================
 // 共通ヘルパー
@@ -160,12 +160,14 @@ function addNextButton(container: HTMLElement, parentEl: HTMLElement): void {
 // ST-01 茨の湖（ボートで横断）
 // ===============================
 // 【メカニクス】
-//   船は自動で進む（基本速度）
-//   押している間  → 加速 + プレイヤーHPダメージ（茨の痛み）
-//   押していない間 → 従者HPダメージ（従者も茨に傷つく）
-//   従者HP 0      → 従者が自動生贄、ゲーム続行
+//   AとDを拍に合わせて交互に押す（リズム漕ぎ）
+//   On-Beat正解キー → 大きく進む、ダメージなし
+//   Off-Beat正解キー → 少し進む、HP -1
+//   逆キー押し → HP -2、進まない
+//   拍を外す（未押し） → 従者HPダメージ（茨に傷つく）
+//   従者HP 0 → 従者が自動生贄
 //   プレイヤーHP 0 → ゲームオーバー
-//   進行100%      → クリア
+//   進行100% → クリア
 
 async function runStage01(container: HTMLElement): Promise<void> {
   const state = getState();
@@ -216,11 +218,13 @@ async function runStage01(container: HTMLElement): Promise<void> {
         </div>
       ` : ''}
 
-      <button class="btn-hold-large" id="btn-hold" style="touch-action:none;user-select:none">
-        漕げ
-      </button>
+      <div class="st01-key-row">
+        <button class="st01-key-btn active-key" id="btn-key-a">A</button>
+        <button class="st01-key-btn" id="btn-key-d">D</button>
+      </div>
       <p class="mechanic-hint">
-        押すと加速するが、茨が刺さる。<br>離すと従者が傷ついていく。
+        光っているキーを拍に合わせて交互に押せ。<br>
+        On-Beatで漕げば速く進み、茨の痛みも和らぐ。
       </p>
     </div>
 
@@ -235,14 +239,41 @@ async function runStage01(container: HTMLElement): Promise<void> {
     <div class="stage-result" id="stage-result" style="display:none"></div>
   `);
 
-  let isHolding = false;
-  let progress = 0;
   let gameActive = true;
+  let progress = 0;
   let totalPlayerDmg = 0;
   let servantSacrificed = false;
+  let expectedKey: 'a' | 'd' = 'a';
+  let pressedThisBeat = false;
   const shownMilestones = new Set<number>();
   let dialogueLocked = false;
-  let onBeatDmgAccum = 0; // On-Beat時のHPコスト半減用アキュムレータ
+
+  function updateProgressDisplay(): void {
+    const bar = document.getElementById('st01-progress-bar');
+    const pct = document.getElementById('st01-progress-pct');
+    if (bar) bar.style.width = `${progress}%`;
+    if (pct) pct.textContent = `${Math.round(progress)}%`;
+  }
+
+  function updateServantHpDisplay(): void {
+    const fill = document.getElementById('st01-servant-fill');
+    const val = document.getElementById('st01-servant-val');
+    if (fill) fill.style.width = `${Math.round((servantHp / servantMaxHp) * 100)}%`;
+    if (val) val.textContent = `${servantHp}/${servantMaxHp}`;
+  }
+
+  function updateHpLargeDisplay(): void {
+    updateHpDisplay();
+    const fill = document.getElementById('st01-hp-fill');
+    const val = document.getElementById('st01-hp-val');
+    if (fill) fill.style.width = `${Math.max(0, Math.round((state.hp / state.maxHp) * 100))}%`;
+    if (val) val.textContent = `${state.hp} / ${state.maxHp}`;
+  }
+
+  function updateKeyLights(): void {
+    document.getElementById('btn-key-a')?.classList.toggle('active-key', expectedKey === 'a');
+    document.getElementById('btn-key-d')?.classList.toggle('active-key', expectedKey === 'd');
+  }
 
   async function showServantLine(text: string): Promise<void> {
     if (dialogueLocked) return;
@@ -262,42 +293,39 @@ async function runStage01(container: HTMLElement): Promise<void> {
     dialogueLocked = false;
   }
 
-  // 200ms tick: 進行 + プレイヤーHP
-  const mainTicker = setInterval(() => {
+  function handleKeyPress(key: 'a' | 'd'): void {
     if (!gameActive) return;
+    const { isOnBeat } = checkOnBeat();
+    flashActionBeat(isOnBeat);
 
-    const baseAdv = 0.5;
-    let holdAdv = 0;
-
-    if (isHolding) {
-      const { isOnBeat } = checkOnBeat();
-      holdAdv = isOnBeat ? 1.95 : 1.5; // On-Beat: +30%効率
-
-      // HP cost: On-Beatは半減（0.5ずつ積算し1を超えたら-1HP）
-      onBeatDmgAccum += isOnBeat ? 0.5 : 1.0;
-      if (onBeatDmgAccum >= 1) {
-        changeHp(-1);
-        totalPlayerDmg++;
-        onBeatDmgAccum -= 1;
-      }
-
-      if (isOnBeat) {
-        flashActionBeat(true);
-      }
-
-      updateHpDisplay();
-      const bigFill = document.getElementById('st01-hp-fill');
-      const bigVal = document.getElementById('st01-hp-val');
-      if (bigFill) bigFill.style.width = `${Math.max(0, Math.round((state.hp / state.maxHp) * 100))}%`;
-      if (bigVal) bigVal.textContent = `${state.hp} / ${state.maxHp}`;
+    // 押したキーをアニメーション
+    const btn = document.getElementById(`btn-key-${key}`);
+    if (btn) {
+      btn.classList.add('pressed-key');
+      setTimeout(() => btn.classList.remove('pressed-key'), 110);
     }
 
-    progress = Math.min(100, progress + baseAdv + holdAdv);
+    if (key === expectedKey) {
+      pressedThisBeat = true;
+      if (isOnBeat) {
+        progress = Math.min(100, progress + 4.5);
+        playSFX('onbeat');
+      } else {
+        progress = Math.min(100, progress + 1.5);
+        changeHp(-1);
+        totalPlayerDmg++;
+        document.getElementById('pain-overlay')?.classList.add('active');
+        setTimeout(() => document.getElementById('pain-overlay')?.classList.remove('active'), 180);
+      }
+    } else {
+      // 逆キー → ダメージ
+      changeHp(-2);
+      totalPlayerDmg += 2;
+      flashDamage();
+    }
 
-    const bar = document.getElementById('st01-progress-bar');
-    const pctEl = document.getElementById('st01-progress-pct');
-    if (bar) bar.style.width = `${progress}%`;
-    if (pctEl) pctEl.textContent = `${Math.round(progress)}%`;
+    updateHpLargeDisplay();
+    updateProgressDisplay();
 
     for (const ms of [25, 50, 75]) {
       if (progress >= ms && !shownMilestones.has(ms) && rowingServant) {
@@ -308,63 +336,57 @@ async function runStage01(container: HTMLElement): Promise<void> {
 
     if (state.hp <= 0) { finish('dead'); return; }
     if (progress >= 100) { finish('success'); }
-  }, 200);
-
-  // 1000ms tick: 従者HPダメージ（離しているとき）
-  const servantTicker = setInterval(() => {
-    if (!gameActive || isHolding || servantSacrificed || !rowingServant) return;
-
-    servantHp = Math.max(0, servantHp - 1);
-    const fill = document.getElementById('st01-servant-fill');
-    const val = document.getElementById('st01-servant-val');
-    if (fill) fill.style.width = `${Math.round((servantHp / servantMaxHp) * 100)}%`;
-    if (val) val.textContent = `${servantHp}/${servantMaxHp}`;
-
-    if (servantHp === 5) showServantLine(rowingServant.dialogue.pain);
-
-    if (servantHp <= 0 && !servantSacrificed) {
-      servantSacrificed = true;
-      showServantLine(rowingServant.dialogue.sacrifice);
-      sacrificeServant(rowingServant.id);
-      playSFX('sacrifice');
-    }
-  }, 1000);
+  }
 
   function finish(outcome: 'success' | 'dead'): void {
     if (!gameActive) return;
     gameActive = false;
-    clearInterval(mainTicker);
-    clearInterval(servantTicker);
-    docCleanup();
+    clearInterval(beatTicker);
+    document.removeEventListener('keydown', onKeyDown);
     document.getElementById('pain-overlay')?.classList.remove('active');
     if (outcome === 'dead') { showGameOver(container); return; }
     finishStage01();
   }
 
-  function startHolding(): void {
-    if (!gameActive || isHolding) return;
-    isHolding = true;
-    document.getElementById('btn-hold')?.classList.add('active');
-    document.getElementById('pain-overlay')?.classList.add('active');
+  function onKeyDown(e: KeyboardEvent): void {
+    if (!gameActive) return;
+    const k = e.key.toLowerCase();
+    if (k === 'a') handleKeyPress('a');
+    else if (k === 'd') handleKeyPress('d');
   }
 
-  function stopHolding(): void {
-    if (!isHolding) return;
-    isHolding = false;
-    document.getElementById('btn-hold')?.classList.remove('active');
-    document.getElementById('pain-overlay')?.classList.remove('active');
-  }
+  // 拍ごとにキーを交互に切り替え、進行ベース増加、ミスした拍は従者ダメージ
+  const beatMs = Math.round(60000 / getBPM());
+  const beatTicker = setInterval(() => {
+    if (!gameActive) return;
 
-  function docCleanup(): void {
-    document.removeEventListener('mouseup', stopHolding);
-    document.removeEventListener('touchend', stopHolding);
-  }
+    // 前の拍で押せなかった → 従者ダメージ
+    if (!pressedThisBeat && rowingServant && !servantSacrificed) {
+      servantHp = Math.max(0, servantHp - 2);
+      updateServantHpDisplay();
+      if (servantHp === 5) showServantLine(rowingServant.dialogue.pain);
+      if (servantHp <= 0) {
+        servantSacrificed = true;
+        showServantLine(rowingServant.dialogue.sacrifice);
+        sacrificeServant(rowingServant.id);
+        playSFX('sacrifice');
+      }
+    }
 
-  const holdBtn = document.getElementById('btn-hold')!;
-  holdBtn.addEventListener('mousedown', startHolding);
-  holdBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startHolding(); }, { passive: false });
-  document.addEventListener('mouseup', stopHolding);
-  document.addEventListener('touchend', stopHolding);
+    // 自動ベース進行（漕がなくても少しずつ）
+    progress = Math.min(100, progress + 0.4);
+    updateProgressDisplay();
+    if (progress >= 100) { finish('success'); return; }
+
+    // 次の拍へ
+    expectedKey = expectedKey === 'a' ? 'd' : 'a';
+    pressedThisBeat = false;
+    updateKeyLights();
+  }, beatMs);
+
+  document.addEventListener('keydown', onKeyDown);
+  document.getElementById('btn-key-a')?.addEventListener('click', () => handleKeyPress('a'));
+  document.getElementById('btn-key-d')?.addEventListener('click', () => handleKeyPress('d'));
 
   async function finishStage01(): Promise<void> {
     const resultEl = document.getElementById('stage-result')!;
@@ -672,9 +694,15 @@ async function runStage03(container: HTMLElement): Promise<void> {
     hint.textContent = `${targetServant.name}の透視：Aは安全。Bは毒だ。`;
   });
 
-  document.getElementById('btn-eat-a')?.addEventListener('click', () => { if (!choiceMade) resolveChoice('a'); });
-  document.getElementById('btn-eat-b')?.addEventListener('click', () => { if (!choiceMade) resolveChoice('b'); });
-  document.getElementById('btn-eat-none')?.addEventListener('click', () => { if (!choiceMade) resolveChoice('none'); });
+  document.getElementById('btn-eat-a')?.addEventListener('click', () => {
+    if (!choiceMade) { flashActionBeat(checkOnBeat().isOnBeat); resolveChoice('a'); }
+  });
+  document.getElementById('btn-eat-b')?.addEventListener('click', () => {
+    if (!choiceMade) { flashActionBeat(checkOnBeat().isOnBeat); resolveChoice('b'); }
+  });
+  document.getElementById('btn-eat-none')?.addEventListener('click', () => {
+    if (!choiceMade) { flashActionBeat(checkOnBeat().isOnBeat); resolveChoice('none'); }
+  });
 
   async function resolveChoice(choice: 'a' | 'b' | 'none'): Promise<void> {
     choiceMade = true;
@@ -807,6 +835,7 @@ async function runStage04(container: HTMLElement): Promise<void> {
       btn.className = `choice-btn${opt.good ? '' : ' sel-danger'}`;
       btn.textContent = opt.text;
       btn.addEventListener('click', async () => {
+        flashActionBeat(checkOnBeat().isOnBeat);
         optionsEl.querySelectorAll('button').forEach(b => (b as HTMLButtonElement).disabled = true);
         if (opt.good) trust++;
         updateTrustBar();
@@ -953,7 +982,9 @@ async function runStage05(container: HTMLElement): Promise<void> {
 
     const onFightClick = () => {
       if (!fightActive) return;
-      clicks++;
+      const { isOnBeat } = checkOnBeat();
+      flashActionBeat(isOnBeat);
+      clicks += isOnBeat ? 2 : 1;
       playSFX('select');
       const pct = Math.min(100, Math.round((clicks / cfg.targetClicks) * 100));
       const bar = document.getElementById('fight-bar');
@@ -1234,10 +1265,12 @@ async function runStage07(container: HTMLElement): Promise<void> {
         return;
       }
 
-      const DURATION = 2200;
+      // リングがBPMに同期: t_perfect が3拍目に来るよう DURATION を算出
       const RING_START = 200;
       const BTN_SIZE = 80;
-      const t_perfect = DURATION * (1 - BTN_SIZE / RING_START);
+      const PERFECT_FRAC = 1 - BTN_SIZE / RING_START; // ≈ 0.6
+      const DURATION = Math.round((3 * 60000 / getBPM()) / PERFECT_FRAC);
+      const t_perfect = DURATION * PERFECT_FRAC;
       const PERFECT_WIN = 160;
       const LATE_WIN = 420;
 
@@ -1399,9 +1432,15 @@ async function runStage08(container: HTMLElement): Promise<void> {
       renderFork();
     });
 
-    document.getElementById('troll-left')?.addEventListener('click', () => handleChoice('left'));
-    document.getElementById('troll-center')?.addEventListener('click', () => handleChoice('center'));
-    document.getElementById('troll-right')?.addEventListener('click', () => handleChoice('right'));
+    document.getElementById('troll-left')?.addEventListener('click', () => {
+      flashActionBeat(checkOnBeat().isOnBeat); handleChoice('left');
+    });
+    document.getElementById('troll-center')?.addEventListener('click', () => {
+      flashActionBeat(checkOnBeat().isOnBeat); handleChoice('center');
+    });
+    document.getElementById('troll-right')?.addEventListener('click', () => {
+      flashActionBeat(checkOnBeat().isOnBeat); handleChoice('right');
+    });
   }
 
   async function handleChoice(choice: TrolleyPath): Promise<void> {

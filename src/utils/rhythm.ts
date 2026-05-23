@@ -58,17 +58,34 @@ export function checkOnBeat(): { isOnBeat: boolean; offsetMs: number } {
   return { isOnBeat: offsetMs <= BEAT_WINDOW_MS, offsetMs };
 }
 
-// ── ビートインジケーター（画面右端の細いライン）──────────────
+// ── ビートインジケーター（画面左下の鼓動HUD）──────────────
+
+// SVG r=22 の円周 = 2π×22 ≈ 138.23
+const BEAT_RING_CIRC = 138.23;
 
 export function startBeatIndicator(): void {
   if (_indicatorActive) return;
   _indicatorActive = true;
 
-  // 既存要素があれば再利用
-  if (!document.getElementById('beat-indicator')) {
-    const line = document.createElement('div');
-    line.id = 'beat-indicator';
-    document.body.appendChild(line);
+  let el = document.getElementById('beat-indicator');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'beat-indicator';
+    el.innerHTML = `
+      <div id="beat-orb-wrap">
+        <svg id="beat-ring-svg" viewBox="0 0 56 56" width="56" height="56">
+          <circle cx="28" cy="28" r="22" fill="none"
+                  stroke="rgba(201,162,39,0.12)" stroke-width="4"/>
+          <circle id="beat-ring-fill" cx="28" cy="28" r="22" fill="none"
+                  stroke="rgba(201,162,39,0.78)" stroke-width="4"
+                  stroke-linecap="round"
+                  stroke-dasharray="${BEAT_RING_CIRC}"
+                  stroke-dashoffset="${BEAT_RING_CIRC}"/>
+        </svg>
+        <div id="beat-core"></div>
+      </div>
+      <div id="beat-grade"></div>`;
+    document.body.appendChild(el);
   }
 
   let prevPhase = 0;
@@ -76,6 +93,15 @@ export function startBeatIndicator(): void {
   function tick(): void {
     if (!_indicatorActive) return;
     const phase = getBeatPhase();
+
+    const fillEl = document.getElementById('beat-ring-fill');
+    if (fillEl) {
+      fillEl.setAttribute(
+        'stroke-dashoffset',
+        (BEAT_RING_CIRC * (1 - phase)).toFixed(2),
+      );
+    }
+
     if (prevPhase > 0.85 && phase < 0.15) {
       _pulseIndicator();
     }
@@ -100,11 +126,20 @@ function _pulseIndicator(): void {
 
 /** アクション時のOn-Beat/Off-Beatフラッシュ演出 */
 export function flashActionBeat(isOnBeat: boolean): void {
-  const el = document.getElementById('beat-indicator');
-  if (el) {
-    el.classList.add(isOnBeat ? 'beat-on' : 'beat-off');
-    setTimeout(() => el.classList.remove('beat-on', 'beat-off'), 280);
-  }
+  showRhythmGrade(isOnBeat ? 'PERFECT' : 'MISS');
+}
+
+/** ボタン押下タイミングのグレードをHUDに表示 */
+export function showRhythmGrade(grade: 'PERFECT' | 'GOOD' | 'MISS'): void {
+  const el = document.getElementById('beat-grade');
+  if (!el) return;
+  el.className = '';
+  el.textContent = grade;
+  void (el as HTMLElement).offsetWidth; // reflow でアニメーションをリセット
+  el.classList.add(
+    'grade-show',
+    grade === 'PERFECT' ? 'grade-perfect' : grade === 'MISS' ? 'grade-miss' : 'grade-good',
+  );
 }
 
 // ── ライトモチーフ合成（Web Audio API）──────────────────────

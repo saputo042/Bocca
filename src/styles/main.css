@@ -4758,6 +4758,47 @@ body {
   line-height: 1.7;
 }
 
+/* ST-01 A/Dリズムキー */
+.st01-key-row {
+  display: flex;
+  gap: 2.5rem;
+  justify-content: center;
+  margin: 1rem 0 0.5rem;
+}
+.st01-key-btn {
+  width: 88px;
+  height: 88px;
+  border-radius: 14px;
+  border: 2px solid rgba(201, 162, 39, 0.22);
+  background: rgba(201, 162, 39, 0.04);
+  color: rgba(168, 154, 122, 0.5);
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.08s ease, border-color 0.08s ease,
+              box-shadow 0.08s ease, color 0.08s ease, transform 0.06s ease;
+  user-select: none;
+  touch-action: manipulation;
+}
+.st01-key-btn.active-key {
+  border-color: rgba(201, 162, 39, 0.85);
+  background: rgba(201, 162, 39, 0.14);
+  color: var(--color-gold);
+  box-shadow: 0 0 22px rgba(201, 162, 39, 0.45),
+              inset 0 0 14px rgba(201, 162, 39, 0.15);
+  animation: key-glow-pulse 0.5s ease infinite alternate;
+}
+.st01-key-btn.pressed-key {
+  transform: scale(0.88);
+  background: rgba(201, 162, 39, 0.38);
+  box-shadow: 0 0 30px rgba(201, 162, 39, 0.7);
+}
+@keyframes key-glow-pulse {
+  from { box-shadow: 0 0 16px rgba(201,162,39,0.35), inset 0 0 10px rgba(201,162,39,0.12); }
+  to   { box-shadow: 0 0 28px rgba(201,162,39,0.60), inset 0 0 18px rgba(201,162,39,0.22); }
+}
+
 /* ST-04 RPGダイアログシーン */
 .rpg-dialogue-scene {
   display: flex;
@@ -4855,34 +4896,70 @@ body {
 .btn-config:hover{background:rgba(201,162,39,0.08);border-color:rgba(201,162,39,0.5);color:var(--color-gold)}
 
 /* =============================================
-   鼓動システム — ビートインジケーター
+   鼓動システム — ビートHUD（左下）
 ============================================= */
 
 #beat-indicator {
   position: fixed;
-  top: 0;
-  right: 0;
-  width: 4px;
-  height: 100vh;
-  background: rgba(201, 162, 39, 0.18);
+  bottom: 1.2rem;
+  left: 1.2rem;
   z-index: 9999;
   pointer-events: none;
-  transition: background 0.1s ease, box-shadow 0.1s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
 }
 
-#beat-indicator.beat-pulse {
-  background: rgba(201, 162, 39, 0.7);
-  box-shadow: 0 0 12px rgba(201, 162, 39, 0.8), 0 0 4px rgba(201, 162, 39, 1);
+#beat-orb-wrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
 }
 
-#beat-indicator.beat-on {
-  background: rgba(16, 185, 129, 0.9);
-  box-shadow: 0 0 16px rgba(16, 185, 129, 0.9), 0 0 6px rgba(16, 185, 129, 1);
+#beat-ring-svg {
+  display: block;
+  transform: rotate(-90deg); /* 12時方向からフィル開始 */
 }
 
-#beat-indicator.beat-off {
-  background: rgba(239, 68, 68, 0.7);
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+#beat-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  background: rgba(201, 162, 39, 0.18);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: background 0.06s ease, transform 0.06s ease, box-shadow 0.06s ease;
+}
+
+#beat-indicator.beat-pulse #beat-core {
+  background: rgba(201, 162, 39, 0.95);
+  transform: translate(-50%, -50%) scale(1.35);
+  box-shadow: 0 0 16px rgba(201, 162, 39, 0.9), 0 0 6px rgba(201, 162, 39, 1);
+}
+
+#beat-grade {
+  font-family: var(--font-display);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  height: 14px;
+  opacity: 0;
+}
+
+#beat-grade.grade-show    { animation: grade-pop 0.65s ease forwards; }
+#beat-grade.grade-perfect { color: #C9A227; }
+#beat-grade.grade-good    { color: #10b981; }
+#beat-grade.grade-miss    { color: #ef4444; }
+
+@keyframes grade-pop {
+  0%   { opacity: 0; transform: translateY(3px)  scale(0.75); }
+  20%  { opacity: 1; transform: translateY(-3px) scale(1.15); }
+  55%  { opacity: 1; transform: translateY(0)    scale(1);    }
+  100% { opacity: 0; transform: translateY(-5px) scale(0.85); }
 }
 
 /* =============================================
