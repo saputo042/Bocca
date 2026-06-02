@@ -256,13 +256,37 @@ function addNextButton(container: HTMLElement, parentEl: HTMLElement): void {
   parentEl.appendChild(btn);
 }
 
+function showFuTaiou(): void {
+  const el = document.createElement('div');
+  el.className = 'futaiou-toast';
+  el.textContent = '不対応';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1200);
+}
+
 // フェイズ中にダメージを受けた直後、メカニク欄にインラインで犠牲オプションを提示する。
-// 従者がいない・dmg=0 の場合は即 false を返す。healed=true なら HP は回復済み。
+// RFID接続中はタグをかざすだけで自動生贄。従者がいない・dmg=0 の場合は即 false を返す。
 function offerHealNow(dmg: number): Promise<boolean> {
   return new Promise(resolve => {
     if (dmg <= 0 || aliveServants().length === 0) { resolve(false); return; }
     const mechEl = document.getElementById('stage-mechanic');
     if (!mechEl) { resolve(false); return; }
+
+    let done = false;
+    let unsubRfid: (() => void) | null = null;
+
+    function doHeal(servantId: number): void {
+      if (done) return;
+      done = true;
+      unsubRfid?.();
+      const sac = sacrificeServant(servantId);
+      if (!sac) return;
+      playSFX('sacrifice');
+      changeHp(dmg);
+      updateHpDisplay();
+      section.remove();
+      resolve(true);
+    }
 
     const section = document.createElement('div');
     section.className = 'heal-now-section';
@@ -275,19 +299,26 @@ function offerHealNow(dmg: number): Promise<boolean> {
     `;
     mechEl.appendChild(section);
 
+    if (rfidManager.isConnected) {
+      unsubRfid = rfidManager.onScan(piece => {
+        if (done) return;
+        const servant = getServantByPiece(piece);
+        if (!servant) { showFuTaiou(); return; }
+        doHeal(servant.id);
+      });
+    }
+
     document.getElementById('btn-heal-now')?.addEventListener('click', async () => {
+      if (done) return;
       const sid = await showServantSelectModal('傷を癒す従者を選ぶ');
       if (sid === -1) return;
-      const sac = sacrificeServant(sid);
-      if (!sac) return;
-      playSFX('sacrifice');
-      changeHp(dmg);
-      updateHpDisplay();
-      section.remove();
-      resolve(true);
+      doHeal(sid);
     });
 
     document.getElementById('btn-heal-skip')?.addEventListener('click', () => {
+      if (done) return;
+      done = true;
+      unsubRfid?.();
       section.remove();
       resolve(false);
     });
@@ -387,6 +418,7 @@ async function runStage01(container: HTMLElement): Promise<void> {
   const shownMilestones = new Set<number>();
   let dialogueLocked = false;
   let sacrificing = false; // 犠牲モーダル中は当たり判定を停止
+  let rfidUnsubSt01: (() => void) | null = null;
   const beatMs = Math.round(60000 / getBPM());
 
   function updateHealBtn(): void {
@@ -547,6 +579,7 @@ async function runStage01(container: HTMLElement): Promise<void> {
   function finish(outcome: 'success' | 'dead'): void {
     if (!gameActive) return;
     gameActive = false;
+    rfidUnsubSt01?.();
     clearInterval(beatTicker);
     document.removeEventListener('keydown', onKeyDown);
     document.getElementById('pain-overlay')?.classList.remove('active');
@@ -574,6 +607,26 @@ async function runStage01(container: HTMLElement): Promise<void> {
   document.addEventListener('keydown', onKeyDown);
   document.getElementById('btn-key-a')?.addEventListener('click', () => moveLane('a'));
   document.getElementById('btn-key-d')?.addEventListener('click', () => moveLane('d'));
+
+  // RFID: ゲーム中にタグをかざすだけで自動生贄（ダメージ蓄積時のみ有効）
+  if (rfidManager.isConnected) {
+    rfidUnsubSt01 = rfidManager.onScan(piece => {
+      const servant = getServantByPiece(piece);
+      if (!gameActive || sacrificing || totalPlayerDmg <= 0 || !servant) {
+        showFuTaiou();
+        return;
+      }
+      sacrificing = true;
+      const sac = sacrificeServant(servant.id);
+      sacrificing = false;
+      if (!sac) { showFuTaiou(); return; }
+      playSFX('sacrifice');
+      changeHp(totalPlayerDmg);
+      totalPlayerDmg = 0;
+      updateHpDisplay();
+      updateHealBtn();
+    });
+  }
 
   async function finishStage01(): Promise<void> {
     // プレイ終了時はヒールボタンを隠す
