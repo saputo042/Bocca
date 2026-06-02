@@ -256,41 +256,42 @@ function addNextButton(container: HTMLElement, parentEl: HTMLElement): void {
   parentEl.appendChild(btn);
 }
 
-// フェイズ中に受けたダメージを従者犠牲で回復するボタンを結果欄に追加する。
-// 生存従者がいない・dmg=0 の場合はスキップして次へボタンのみ表示。
-async function addHealSacrificeButton(
-  dmg: number,
-  resultEl: HTMLElement,
-  container: HTMLElement,
-): Promise<void> {
-  if (dmg > 0 && aliveServants().length > 0) {
-    const sacWrap = document.createElement('div');
-    sacWrap.className = 'sacrifice-quick-btn';
-    sacWrap.style.marginTop = '0.75rem';
+// フェイズ中にダメージを受けた直後、メカニク欄にインラインで犠牲オプションを提示する。
+// 従者がいない・dmg=0 の場合は即 false を返す。healed=true なら HP は回復済み。
+function offerHealNow(dmg: number): Promise<boolean> {
+  return new Promise(resolve => {
+    if (dmg <= 0 || aliveServants().length === 0) { resolve(false); return; }
+    const mechEl = document.getElementById('stage-mechanic');
+    if (!mechEl) { resolve(false); return; }
 
-    const sacBtn = document.createElement('button');
-    sacBtn.className = 'btn-sacrifice';
-    sacBtn.textContent = `従者を捧げる — このフェイズの傷を癒す（HP +${dmg}）`;
-    sacBtn.addEventListener('click', async () => {
-      sacBtn.disabled = true;
+    const section = document.createElement('div');
+    section.className = 'heal-now-section';
+    section.innerHTML = `
+      <p class="heal-now-msg">従者を捧げて傷を癒しますか？（HP +${dmg}）</p>
+      <div class="heal-now-btns">
+        <button class="btn-sacrifice" id="btn-heal-now">従者を捧げる</button>
+        <button class="btn-cancel"    id="btn-heal-skip">このまま続ける</button>
+      </div>
+    `;
+    mechEl.appendChild(section);
+
+    document.getElementById('btn-heal-now')?.addEventListener('click', async () => {
       const sid = await showServantSelectModal('傷を癒す従者を選ぶ');
-      if (sid === -1) { sacBtn.disabled = false; return; }
+      if (sid === -1) return;
       const sac = sacrificeServant(sid);
-      if (!sac) { sacBtn.disabled = false; return; }
+      if (!sac) return;
       playSFX('sacrifice');
       changeHp(dmg);
       updateHpDisplay();
-      sacWrap.remove();
-      const healLine = document.createElement('p');
-      healLine.style.cssText = 'color:#4ade80;margin-top:0.4rem;font-size:0.85rem;font-style:italic;';
-      healLine.textContent = `${sac.name}が傷を癒した。HP +${dmg}`;
-      resultEl.appendChild(healLine);
+      section.remove();
+      resolve(true);
     });
-    sacWrap.appendChild(sacBtn);
-    resultEl.appendChild(sacWrap);
-  }
-  await sleep(800);
-  addNextButton(container, resultEl);
+
+    document.getElementById('btn-heal-skip')?.addEventListener('click', () => {
+      section.remove();
+      resolve(false);
+    });
+  });
 }
 
 // ===============================
@@ -366,6 +367,9 @@ async function runStage01(container: HTMLElement): Promise<void> {
       <button class="st01-key-btn" id="btn-key-a">◀ A</button>
       <button class="st01-key-btn" id="btn-key-d">D ▶</button>
     </div>
+    <div class="battle-action-row" id="st01-sac-row" style="display:none">
+      <button class="btn-sacrifice" id="btn-sac-heal-01">従者を捧げる — 傷を癒す</button>
+    </div>
     <p class="mechanic-hint">
       茨の密集地帯を避けよ。A:左 / D:右<br>
       拍に合わせて回避すると速く進む。
@@ -382,7 +386,32 @@ async function runStage01(container: HTMLElement): Promise<void> {
   let beatCount = 0;
   const shownMilestones = new Set<number>();
   let dialogueLocked = false;
+  let sacrificing = false; // 犠牲モーダル中は当たり判定を停止
   const beatMs = Math.round(60000 / getBPM());
+
+  function updateHealBtn(): void {
+    const row = document.getElementById('st01-sac-row');
+    const btn = document.getElementById('btn-sac-heal-01') as HTMLButtonElement | null;
+    if (!row || !btn) return;
+    const canHeal = totalPlayerDmg > 0 && aliveServants().length > 0;
+    row.style.display = canHeal ? 'block' : 'none';
+    if (canHeal) btn.textContent = `従者を捧げる — 傷を癒す（HP +${totalPlayerDmg}）`;
+  }
+
+  document.getElementById('btn-sac-heal-01')?.addEventListener('click', async () => {
+    if (!gameActive || sacrificing || totalPlayerDmg <= 0) return;
+    sacrificing = true;
+    const sid = await showServantSelectModal('傷を癒す従者を選ぶ');
+    sacrificing = false;
+    if (sid === -1) return;
+    const sac = sacrificeServant(sid);
+    if (!sac) return;
+    playSFX('sacrifice');
+    changeHp(totalPlayerDmg);
+    totalPlayerDmg = 0;
+    updateHpDisplay();
+    updateHealBtn();
+  });
 
   function updateProgressDisplay(): void {
     const bar = document.getElementById('st01-progress-bar');
@@ -484,11 +513,14 @@ async function runStage01(container: HTMLElement): Promise<void> {
             playSFX('sacrifice');
           }
         } else {
-          // 従者なし → 直接ダメージ
-          changeHp(-6);
-          totalPlayerDmg += 6;
-          updateHpDisplay();
-          if (state.hp <= 0) finish('dead');
+          // 従者なし → 直接ダメージ（犠牲モーダル中はスキップ）
+          if (!sacrificing) {
+            changeHp(-6);
+            totalPlayerDmg += 6;
+            updateHpDisplay();
+            updateHealBtn();
+            if (state.hp <= 0) finish('dead');
+          }
         }
       }
     }, Math.round(animDuration * 0.62));
@@ -544,6 +576,10 @@ async function runStage01(container: HTMLElement): Promise<void> {
   document.getElementById('btn-key-d')?.addEventListener('click', () => moveLane('d'));
 
   async function finishStage01(): Promise<void> {
+    // プレイ終了時はヒールボタンを隠す
+    const sacRow = document.getElementById('st01-sac-row');
+    if (sacRow) sacRow.style.display = 'none';
+
     const resultEl = document.getElementById('stage-result')!;
     resultEl.style.display = 'block';
     let msg: string;
@@ -559,7 +595,8 @@ async function runStage01(container: HTMLElement): Promise<void> {
       sacrificedServantName: servantSacrificed ? rowingServant?.name : undefined,
       hpDelta: -totalPlayerDmg,
     });
-    await addHealSacrificeButton(totalPlayerDmg, resultEl, container);
+    await sleep(800);
+    addNextButton(container, resultEl);
   }
 }
 
@@ -743,7 +780,11 @@ async function runStage02(container: HTMLElement): Promise<void> {
     updateHpDisplay();
     flashDamage();
     if (state.hp <= 0) { showGameOver(container); return; }
-    await endStage02('避けるのが遅れた。犬の牙が腕を掠めた。HP -15', 'fail', null, 15, 0);
+    const healed = await offerHealNow(15);
+    await endStage02(
+      healed ? '避けるのが遅れた。だが従者が傷を癒した。' : '避けるのが遅れた。犬の牙が腕を掠めた。HP -15',
+      healed ? 'sacrifice' : 'fail', null, healed ? 0 : 15, 0,
+    );
   }
 
   async function onBitten(): Promise<void> {
@@ -753,7 +794,11 @@ async function runStage02(container: HTMLElement): Promise<void> {
     updateHpDisplay();
     flashDamage();
     if (state.hp <= 0) { showGameOver(container); return; }
-    await endStage02('逃げ遅れた。犬に噛みつかれた。HP -25', 'fail', null, 25, 0);
+    const healed = await offerHealNow(25);
+    await endStage02(
+      healed ? '逃げ遅れた。だが従者が傷を癒した。' : '逃げ遅れた。犬に噛みつかれた。HP -25',
+      healed ? 'sacrifice' : 'fail', null, healed ? 0 : 25, 0,
+    );
   }
 
   await runDogApproach(APPROACH_MS, false);
@@ -775,7 +820,8 @@ async function runStage02(container: HTMLElement): Promise<void> {
       hpDelta: -dmg,
       choice: gold > 0 ? `金貨+${gold}` : undefined,
     });
-    await addHealSacrificeButton(dmg, resultEl, container);
+    await sleep(800);
+    addNextButton(container, resultEl);
   }
 }
 
@@ -861,12 +907,22 @@ async function runStage03(container: HTMLElement): Promise<void> {
 
     let hpDelta = 0;
     let msg = '';
+    let healed = false;
+
     if (choice === 'a') {
       hpDelta = 10; changeHp(10); updateHpDisplay();
       msg = 'Aを食べた。毒々しい見た目だったが、安全だった。HP +10';
     } else if (choice === 'b') {
       hpDelta = -15; changeHp(-15); updateHpDisplay(); flashDamage();
-      msg = 'Bを食べた。SNSの噂は正しかった。猛毒だ。HP -15';
+      if (state.hp <= 0) { showGameOver(container); return; }
+      // ダメージ直後にインラインで犠牲オプションを提示
+      healed = await offerHealNow(15);
+      if (healed) {
+        hpDelta = 0;
+        msg = 'Bを食べた。毒が回ったが、従者が傷を癒した。';
+      } else {
+        msg = 'Bを食べた。SNSの噂は正しかった。猛毒だ。HP -15';
+      }
     } else {
       msg = '何も食べなかった。安全だが、何も得られなかった。';
     }
@@ -879,14 +935,13 @@ async function runStage03(container: HTMLElement): Promise<void> {
 
     recordStageResult({
       stageId: 3, stageName: stageData.name,
-      outcome: revealed ? 'sacrifice' : hpDelta >= 0 ? 'success' : 'fail',
-      sacrificedServantName: revealed ? targetServant?.name : undefined,
+      outcome: healed ? 'sacrifice' : revealed ? 'sacrifice' : hpDelta >= 0 ? 'success' : 'fail',
+      sacrificedServantName: healed || revealed ? targetServant?.name : undefined,
       choice, hpDelta,
     });
 
-    // 間違い選択で受けたダメージを従者犠牲で回復できる
-    const poisonDmg = choice === 'b' ? 15 : 0;
-    await addHealSacrificeButton(poisonDmg, resultEl, container);
+    await sleep(800);
+    addNextButton(container, resultEl);
   }
 }
 
@@ -1091,22 +1146,30 @@ async function runStage05(container: HTMLElement): Promise<void> {
   `);
 
   document.getElementById('btn-fight')?.addEventListener('click', () => startFight());
-  document.getElementById('btn-flee')?.addEventListener('click', () => {
+  document.getElementById('btn-flee')?.addEventListener('click', async () => {
     changeHp(-5); updateHpDisplay();
     if (state.hp <= 0) { showGameOver(container); return; }
-    endStage05(-5, 'success', null, '逃げた。多少傷ついたが命は助かった。HP -5');
+    const healed = await offerHealNow(5);
+    await endStage05(
+      healed ? 0 : -5, 'success', null,
+      healed ? '逃げた。従者が傷を癒した。' : '逃げた。多少傷ついたが命は助かった。HP -5',
+    );
   });
-  document.getElementById('btn-negotiate')?.addEventListener('click', () => {
+  document.getElementById('btn-negotiate')?.addEventListener('click', async () => {
     if (state.bigFive.A >= 0.6) {
-      endStage05(0, 'success', null, '交渉成功。盗賊は道を開けた。');
+      await endStage05(0, 'success', null, '交渉成功。盗賊は道を開けた。');
     } else {
       changeHp(-8); updateHpDisplay(); flashDamage();
       if (state.hp <= 0) { showGameOver(container); return; }
-      endStage05(-8, 'fail', null, '交渉失敗。代償を払った。HP -8');
+      const healed = await offerHealNow(8);
+      await endStage05(
+        healed ? 0 : -8, healed ? 'sacrifice' : 'fail', null,
+        healed ? '交渉失敗。だが従者が傷を癒した。' : '交渉失敗。代償を払った。HP -8',
+      );
     }
   });
-  document.getElementById('btn-pay')?.addEventListener('click', () => {
-    endStage05(0, 'success', null, '通行料を払った。財布が軽くなった。');
+  document.getElementById('btn-pay')?.addEventListener('click', async () => {
+    await endStage05(0, 'success', null, '通行料を払った。財布が軽くなった。');
   });
 
   function startFight(): void {
@@ -1118,7 +1181,7 @@ async function runStage05(container: HTMLElement): Promise<void> {
     let fightActive = true;
     let timeLeft = cfg.timeLimitSec;
 
-    const timerInterval = setInterval(() => {
+    const timerInterval = setInterval(async () => {
       timeLeft--;
       const timerEl = document.getElementById('fight-timer');
       if (timerEl) timerEl.textContent = String(timeLeft);
@@ -1128,7 +1191,11 @@ async function runStage05(container: HTMLElement): Promise<void> {
         fightActive = false;
         changeHp(-15); updateHpDisplay(); flashDamage();
         if (state.hp <= 0) { showGameOver(container); return; }
-        endStage05(-15, 'fail', null, '敗北した。HP -15');
+        const healed = await offerHealNow(15);
+        await endStage05(
+          healed ? 0 : -15, healed ? 'sacrifice' : 'fail', null,
+          healed ? '敗北した。だが従者が傷を癒した。' : '敗北した。HP -15',
+        );
       }
     }, 1000);
 
@@ -1154,7 +1221,7 @@ async function runStage05(container: HTMLElement): Promise<void> {
     document.getElementById('btn-fight-r')?.addEventListener('click', onFightClick);
   }
 
-  async function endStage05(hpDelta: number, outcome: 'success' | 'fail', _sid: null, msg: string): Promise<void> {
+  async function endStage05(hpDelta: number, outcome: 'success' | 'sacrifice' | 'fail', _sid: null, msg: string): Promise<void> {
     const resultEl = document.getElementById('stage-result')!;
     resultEl.style.display = 'block';
     await typewriter(resultEl, msg, 40);
@@ -1164,9 +1231,8 @@ async function runStage05(container: HTMLElement): Promise<void> {
       outcome, hpDelta,
     });
 
-    // 受けたダメージを従者犠牲で回復できる
-    const dmg = hpDelta < 0 ? -hpDelta : 0;
-    await addHealSacrificeButton(dmg, resultEl, container);
+    await sleep(800);
+    addNextButton(container, resultEl);
   }
 }
 
