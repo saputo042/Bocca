@@ -256,6 +256,43 @@ function addNextButton(container: HTMLElement, parentEl: HTMLElement): void {
   parentEl.appendChild(btn);
 }
 
+// フェイズ中に受けたダメージを従者犠牲で回復するボタンを結果欄に追加する。
+// 生存従者がいない・dmg=0 の場合はスキップして次へボタンのみ表示。
+async function addHealSacrificeButton(
+  dmg: number,
+  resultEl: HTMLElement,
+  container: HTMLElement,
+): Promise<void> {
+  if (dmg > 0 && aliveServants().length > 0) {
+    const sacWrap = document.createElement('div');
+    sacWrap.className = 'sacrifice-quick-btn';
+    sacWrap.style.marginTop = '0.75rem';
+
+    const sacBtn = document.createElement('button');
+    sacBtn.className = 'btn-sacrifice';
+    sacBtn.textContent = `従者を捧げる — このフェイズの傷を癒す（HP +${dmg}）`;
+    sacBtn.addEventListener('click', async () => {
+      sacBtn.disabled = true;
+      const sid = await showServantSelectModal('傷を癒す従者を選ぶ');
+      if (sid === -1) { sacBtn.disabled = false; return; }
+      const sac = sacrificeServant(sid);
+      if (!sac) { sacBtn.disabled = false; return; }
+      playSFX('sacrifice');
+      changeHp(dmg);
+      updateHpDisplay();
+      sacWrap.remove();
+      const healLine = document.createElement('p');
+      healLine.style.cssText = 'color:#4ade80;margin-top:0.4rem;font-size:0.85rem;font-style:italic;';
+      healLine.textContent = `${sac.name}が傷を癒した。HP +${dmg}`;
+      resultEl.appendChild(healLine);
+    });
+    sacWrap.appendChild(sacBtn);
+    resultEl.appendChild(sacWrap);
+  }
+  await sleep(800);
+  addNextButton(container, resultEl);
+}
+
 // ===============================
 // ST-01 茨の湖（ボートで横断）
 // ===============================
@@ -522,8 +559,7 @@ async function runStage01(container: HTMLElement): Promise<void> {
       sacrificedServantName: servantSacrificed ? rowingServant?.name : undefined,
       hpDelta: -totalPlayerDmg,
     });
-    await sleep(800);
-    addNextButton(container, resultEl);
+    await addHealSacrificeButton(totalPlayerDmg, resultEl, container);
   }
 }
 
@@ -739,8 +775,7 @@ async function runStage02(container: HTMLElement): Promise<void> {
       hpDelta: -dmg,
       choice: gold > 0 ? `金貨+${gold}` : undefined,
     });
-    await sleep(800);
-    addNextButton(container, resultEl);
+    await addHealSacrificeButton(dmg, resultEl, container);
   }
 }
 
@@ -849,8 +884,9 @@ async function runStage03(container: HTMLElement): Promise<void> {
       choice, hpDelta,
     });
 
-    await sleep(800);
-    addNextButton(container, resultEl);
+    // 間違い選択で受けたダメージを従者犠牲で回復できる
+    const poisonDmg = choice === 'b' ? 15 : 0;
+    await addHealSacrificeButton(poisonDmg, resultEl, container);
   }
 }
 
@@ -1128,8 +1164,9 @@ async function runStage05(container: HTMLElement): Promise<void> {
       outcome, hpDelta,
     });
 
-    await sleep(800);
-    addNextButton(container, resultEl);
+    // 受けたダメージを従者犠牲で回復できる
+    const dmg = hpDelta < 0 ? -hpDelta : 0;
+    await addHealSacrificeButton(dmg, resultEl, container);
   }
 }
 
