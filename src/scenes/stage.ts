@@ -259,7 +259,7 @@ function addNextButton(container: HTMLElement, parentEl: HTMLElement): void {
 function showFuTaiou(): void {
   const el = document.createElement('div');
   el.className = 'futaiou-toast';
-  el.textContent = '不対応';
+  el.textContent = '使用不可';
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1200);
 }
