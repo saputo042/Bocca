@@ -132,12 +132,15 @@ function showServantSelectModal(title: string): Promise<number> {
         <h3 class="servant-modal-title">${title}</h3>
         <p class="servant-modal-desc">犠牲にする従者を選んでください</p>
         ${rfidHint}
+        <div class="rfid-scan-result" id="rfid-scan-result" style="display:none"></div>
         <div class="servant-modal-list" id="servant-modal-list"></div>
         <button class="btn-cancel" id="btn-cancel-sacrifice">キャンセル</button>
       </div>
     `;
 
-    const list = overlay.querySelector('#servant-modal-list')!;
+    const list = overlay.querySelector<HTMLElement>('#servant-modal-list')!;
+    const scanResult = overlay.querySelector<HTMLElement>('#rfid-scan-result')!;
+
     alive.forEach(s => {
       const pieceLabel = getServantPieceName(s.id);
       const btn = document.createElement('button');
@@ -158,19 +161,61 @@ function showServantSelectModal(title: string): Promise<number> {
       resolve(-1);
     });
 
-    // RFID スキャンで従者を選択
+    // RFID スキャン: キャラ情報を表示してから1.5秒後に確定
     let unsubscribe: (() => void) | null = null;
+    let confirmTimer: ReturnType<typeof setTimeout> | null = null;
+
     if (rfidManager.isConnected) {
       unsubscribe = rfidManager.onScan(piece => {
+        // 連打防止: 確定待ち中は無視
+        if (confirmTimer !== null) return;
+
         const servant = getServantByPiece(piece);
-        if (!servant) return;
+
+        // 未登録の駒
+        if (!servant) {
+          scanResult.innerHTML = `
+            <div class="rfid-scan-unknown">
+              <span class="scan-icon">❓</span>
+              <span class="scan-msg">このコマは登録されていません</span>
+            </div>
+          `;
+          scanResult.style.display = 'block';
+          setTimeout(() => { scanResult.style.display = 'none'; }, 1200);
+          return;
+        }
+
+        // 対応する従者チップをハイライト
         const chipBtn = list.querySelector<HTMLButtonElement>(`[data-sid="${servant.id}"]`);
         if (chipBtn) chipBtn.classList.add('rfid-selected');
-        setTimeout(() => { cleanup(); resolve(servant.id); }, 350);
+
+        // キャラ情報パネルを表示
+        const pieceLabel = getServantPieceName(servant.id) ?? piece;
+        scanResult.innerHTML = `
+          <div class="rfid-scan-card">
+            <div class="scan-piece-label">${pieceLabel}</div>
+            <div class="scan-symbol">${TAROT_SYMBOLS[servant.id] ?? ''}</div>
+            <div class="scan-name">${servant.name}</div>
+            <div class="scan-trait">${servant.trait}</div>
+            <div class="scan-skill-row">
+              <span class="scan-skill-label">スキル</span>
+              <span class="scan-skill-val">${servant.skill}</span>
+            </div>
+            <div class="scan-confirm-msg">この従者を犠牲にします…</div>
+          </div>
+        `;
+        scanResult.style.display = 'block';
+        list.style.opacity = '0.3';
+
+        confirmTimer = setTimeout(() => {
+          cleanup();
+          resolve(servant.id);
+        }, 1500);
       });
     }
 
     function cleanup(): void {
+      if (confirmTimer !== null) { clearTimeout(confirmTimer); confirmTimer = null; }
       unsubscribe?.();
       overlay.remove();
     }

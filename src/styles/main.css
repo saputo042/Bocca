@@ -4612,6 +4612,84 @@ body {
   animation: rfid-flash 0.35s ease forwards;
 }
 
+/* スキャン結果カード */
+@keyframes rfid-card-in {
+  from { opacity: 0; transform: scale(0.92) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.rfid-scan-result {
+  animation: rfid-card-in 0.25s ease;
+}
+.rfid-scan-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 1rem 1.25rem;
+  background: rgba(40, 200, 100, 0.08);
+  border: 1px solid rgba(40, 200, 100, 0.45);
+  border-radius: 6px;
+  text-align: center;
+}
+.scan-piece-label {
+  font-size: 0.7rem;
+  color: #4ade80;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.scan-symbol {
+  font-size: 2.2rem;
+  line-height: 1;
+  margin: 0.2rem 0;
+}
+.scan-name {
+  font-size: 1.15rem;
+  color: var(--color-gold);
+  font-family: var(--font-serif);
+  letter-spacing: 0.08em;
+}
+.scan-trait {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.scan-skill-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.1rem;
+}
+.scan-skill-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 3px;
+  padding: 0.05rem 0.35rem;
+}
+.scan-skill-val {
+  font-size: 0.78rem;
+  color: var(--text-primary);
+}
+.scan-confirm-msg {
+  font-size: 0.75rem;
+  color: rgba(40, 200, 100, 0.75);
+  margin-top: 0.3rem;
+  letter-spacing: 0.05em;
+}
+
+/* 未登録コマの警告 */
+.rfid-scan-unknown {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  background: rgba(200, 60, 40, 0.1);
+  border: 1px solid rgba(200, 60, 40, 0.35);
+  border-radius: 5px;
+}
+.rfid-scan-unknown .scan-icon { font-size: 1rem; }
+.rfid-scan-unknown .scan-msg  { font-size: 0.78rem; color: var(--text-secondary); }
+
 /* 診断モード選択 */
 .diag-mode-select{display:flex;flex-direction:column;align-items:center;gap:1.5rem;padding:1rem 0}
 .diag-mode-subtitle{font-size:0.9rem;color:var(--text-muted);text-align:center;max-width:360px;line-height:1.6}
