@@ -165,54 +165,52 @@ function showServantSelectModal(title: string): Promise<number> {
     let unsubscribe: (() => void) | null = null;
     let confirmTimer: ReturnType<typeof setTimeout> | null = null;
 
-    if (rfidManager.isConnected) {
-      unsubscribe = rfidManager.onScan(piece => {
-        // 連打防止: 確定待ち中は無視
-        if (confirmTimer !== null) return;
+    unsubscribe = rfidManager.onScan(piece => {
+      // 連打防止: 確定待ち中は無視
+      if (confirmTimer !== null) return;
 
-        const servant = getServantByPiece(piece);
+      const servant = getServantByPiece(piece);
 
-        // 未登録の駒
-        if (!servant) {
-          scanResult.innerHTML = `
-            <div class="rfid-scan-unknown">
-              <span class="scan-icon">❓</span>
-              <span class="scan-msg">このコマは登録されていません</span>
-            </div>
-          `;
-          scanResult.style.display = 'block';
-          setTimeout(() => { scanResult.style.display = 'none'; }, 1200);
-          return;
-        }
-
-        // 対応する従者チップをハイライト
-        const chipBtn = list.querySelector<HTMLButtonElement>(`[data-sid="${servant.id}"]`);
-        if (chipBtn) chipBtn.classList.add('rfid-selected');
-
-        // キャラ情報パネルを表示
-        const pieceLabel = getServantPieceName(servant.id) ?? piece;
+      // 未登録の駒
+      if (!servant) {
         scanResult.innerHTML = `
-          <div class="rfid-scan-card">
-            <div class="scan-piece-label">${pieceLabel}</div>
-            <div class="scan-symbol">${TAROT_SYMBOLS[servant.id] ?? ''}</div>
-            <div class="scan-name">${servant.name}</div>
-            <div class="scan-trait">${servant.trait}</div>
-            <div class="scan-skill-row">
-              <span class="scan-skill-label">スキル</span>
-              <span class="scan-skill-val">${servant.skill}</span>
-            </div>
-            <div class="scan-confirm-msg">この従者を犠牲にします…</div>
+          <div class="rfid-scan-unknown">
+            <span class="scan-icon">❓</span>
+            <span class="scan-msg">このコマは登録されていません</span>
           </div>
         `;
         scanResult.style.display = 'block';
-        list.style.opacity = '0.3';
+        setTimeout(() => { scanResult.style.display = 'none'; }, 1200);
+        return;
+      }
 
-        confirmTimer = setTimeout(() => {
-          cleanup();
-          resolve(servant.id);
-        }, 1500);
-      });
-    }
+      // 対応する従者チップをハイライト
+      const chipBtn = list.querySelector<HTMLButtonElement>(`[data-sid="${servant.id}"]`);
+      if (chipBtn) chipBtn.classList.add('rfid-selected');
+
+      // キャラ情報パネルを表示
+      const pieceLabel = getServantPieceName(servant.id) ?? piece;
+      scanResult.innerHTML = `
+        <div class="rfid-scan-card">
+          <div class="scan-piece-label">${pieceLabel}</div>
+          <div class="scan-symbol">${TAROT_SYMBOLS[servant.id] ?? ''}</div>
+          <div class="scan-name">${servant.name}</div>
+          <div class="scan-trait">${servant.trait}</div>
+          <div class="scan-skill-row">
+            <span class="scan-skill-label">スキル</span>
+            <span class="scan-skill-val">${servant.skill}</span>
+          </div>
+          <div class="scan-confirm-msg">この従者を犠牲にします…</div>
+        </div>
+      `;
+      scanResult.style.display = 'block';
+      list.style.opacity = '0.3';
+
+      confirmTimer = setTimeout(() => {
+        cleanup();
+        resolve(servant.id);
+      }, 1500);
+    });
 
     function cleanup(): void {
       if (confirmTimer !== null) { clearTimeout(confirmTimer); confirmTimer = null; }
@@ -299,14 +297,12 @@ function offerHealNow(dmg: number): Promise<boolean> {
     `;
     mechEl.appendChild(section);
 
-    if (rfidManager.isConnected) {
-      unsubRfid = rfidManager.onScan(piece => {
-        if (done) return;
-        const servant = getServantByPiece(piece);
-        if (!servant) { showFuTaiou(); return; }
-        doHeal(servant.id);
-      });
-    }
+    unsubRfid = rfidManager.onScan(piece => {
+      if (done) return;
+      const servant = getServantByPiece(piece);
+      if (!servant) { showFuTaiou(); return; }
+      doHeal(servant.id);
+    });
 
     document.getElementById('btn-heal-now')?.addEventListener('click', async () => {
       if (done) return;
@@ -609,22 +605,20 @@ async function runStage01(container: HTMLElement): Promise<void> {
   document.getElementById('btn-key-d')?.addEventListener('click', () => moveLane('d'));
 
   // RFID: ゲーム中にタグをかざすだけで自動生贄（ダメージ蓄積時のみ有効）
-  if (rfidManager.isConnected) {
-    rfidUnsubSt01 = rfidManager.onScan(piece => {
-      const servant = getServantByPiece(piece);
-      if (!servant) { showFuTaiou('不対応'); return; }
-      if (!gameActive || sacrificing || totalPlayerDmg <= 0) { showFuTaiou('使用不可'); return; }
-      sacrificing = true;
-      const sac = sacrificeServant(servant.id);
-      sacrificing = false;
-      if (!sac) { showFuTaiou('使用不可'); return; }
-      playSFX('sacrifice');
-      changeHp(totalPlayerDmg);
-      totalPlayerDmg = 0;
-      updateHpDisplay();
-      updateHealBtn();
-    });
-  }
+  rfidUnsubSt01 = rfidManager.onScan(piece => {
+    const servant = getServantByPiece(piece);
+    if (!servant) { showFuTaiou('不対応'); return; }
+    if (!gameActive || sacrificing || totalPlayerDmg <= 0) { showFuTaiou('使用不可'); return; }
+    sacrificing = true;
+    const sac = sacrificeServant(servant.id);
+    sacrificing = false;
+    if (!sac) { showFuTaiou('使用不可'); return; }
+    playSFX('sacrifice');
+    changeHp(totalPlayerDmg);
+    totalPlayerDmg = 0;
+    updateHpDisplay();
+    updateHealBtn();
+  });
 
   async function finishStage01(): Promise<void> {
     // プレイ終了時はヒールボタンを隠す
