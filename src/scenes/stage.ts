@@ -256,10 +256,10 @@ function addNextButton(container: HTMLElement, parentEl: HTMLElement): void {
   parentEl.appendChild(btn);
 }
 
-function showFuTaiou(): void {
+function showFuTaiou(msg: '不対応' | '使用不可' = '不対応'): void {
   const el = document.createElement('div');
   el.className = 'futaiou-toast';
-  el.textContent = '使用不可';
+  el.textContent = msg;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1200);
 }
@@ -612,14 +612,12 @@ async function runStage01(container: HTMLElement): Promise<void> {
   if (rfidManager.isConnected) {
     rfidUnsubSt01 = rfidManager.onScan(piece => {
       const servant = getServantByPiece(piece);
-      if (!gameActive || sacrificing || totalPlayerDmg <= 0 || !servant) {
-        showFuTaiou();
-        return;
-      }
+      if (!servant) { showFuTaiou('不対応'); return; }
+      if (!gameActive || sacrificing || totalPlayerDmg <= 0) { showFuTaiou('使用不可'); return; }
       sacrificing = true;
       const sac = sacrificeServant(servant.id);
       sacrificing = false;
-      if (!sac) { showFuTaiou(); return; }
+      if (!sac) { showFuTaiou('使用不可'); return; }
       playSFX('sacrifice');
       changeHp(totalPlayerDmg);
       totalPlayerDmg = 0;
