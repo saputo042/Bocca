@@ -408,6 +408,7 @@ async function runStage01(container: HTMLElement): Promise<void> {
   let progress = 0;
   let totalPlayerDmg = 0;
   let servantSacrificed = false;
+  let st01SacName = '';
   let playerLane = 1; // 0=左 1=中央 2=右
   let lastMoveWasOnBeat = false;
   let beatCount = 0;
@@ -536,6 +537,7 @@ async function runStage01(container: HTMLElement): Promise<void> {
           if (servantHp === 5) showServantLine(rowingServant.dialogue.pain);
           if (servantHp <= 0) {
             servantSacrificed = true;
+            st01SacName = rowingServant.name;
             showServantLine(rowingServant.dialogue.sacrifice);
             sacrificeServant(rowingServant.id);
             playSFX('sacrifice');
@@ -604,20 +606,24 @@ async function runStage01(container: HTMLElement): Promise<void> {
   document.getElementById('btn-key-a')?.addEventListener('click', () => moveLane('a'));
   document.getElementById('btn-key-d')?.addEventListener('click', () => moveLane('d'));
 
-  // RFID: ゲーム中にタグをかざすだけで自動生贄（ダメージ蓄積時のみ有効）
+  // RFID: タグをかざすと即生贄 → ダメージ回復＋ステージ突破
   rfidUnsubSt01 = rfidManager.onScan(piece => {
     const servant = getServantByPiece(piece);
     if (!servant) { showFuTaiou('不対応'); return; }
-    if (!gameActive || sacrificing || totalPlayerDmg <= 0) { showFuTaiou('使用不可'); return; }
+    if (!gameActive || sacrificing) { showFuTaiou('使用不可'); return; }
     sacrificing = true;
     const sac = sacrificeServant(servant.id);
     sacrificing = false;
     if (!sac) { showFuTaiou('使用不可'); return; }
     playSFX('sacrifice');
-    changeHp(totalPlayerDmg);
-    totalPlayerDmg = 0;
-    updateHpDisplay();
-    updateHealBtn();
+    if (totalPlayerDmg > 0) {
+      changeHp(totalPlayerDmg);
+      totalPlayerDmg = 0;
+      updateHpDisplay();
+    }
+    servantSacrificed = true;
+    st01SacName = sac.name;
+    finish('success');
   });
 
   async function finishStage01(): Promise<void> {
@@ -628,8 +634,8 @@ async function runStage01(container: HTMLElement): Promise<void> {
     const resultEl = document.getElementById('stage-result')!;
     resultEl.style.display = 'block';
     let msg: string;
-    if (servantSacrificed && rowingServant) {
-      msg = `${rowingServant.name}が茨に身を投じた。口はその魂を喰らい、あなたは対岸に辿り着いた。`;
+    if (servantSacrificed && st01SacName) {
+      msg = `${st01SacName}が茨に身を投じた。口はその魂を喰らい、あなたは対岸に辿り着いた。`;
     } else {
       msg = `対岸に辿り着いた。${totalPlayerDmg > 0 ? `HPが${totalPlayerDmg}削られた。` : '傷ひとつなく渡り切った。'}`;
     }
@@ -637,7 +643,7 @@ async function runStage01(container: HTMLElement): Promise<void> {
     recordStageResult({
       stageId: 1, stageName: stageData.name,
       outcome: servantSacrificed ? 'sacrifice' : 'success',
-      sacrificedServantName: servantSacrificed ? rowingServant?.name : undefined,
+      sacrificedServantName: servantSacrificed ? st01SacName : undefined,
       hpDelta: -totalPlayerDmg,
     });
     await sleep(800);

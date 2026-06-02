@@ -2,6 +2,7 @@
 
 import { navigateTo, fadeIn, typewriter, createParticles, sleep } from '../utils/gameState';
 import { playAmbienceForScene } from '../utils/audio';
+import { rfidManager } from '../utils/rfid';
 
 export function renderTitleScene(container: HTMLElement): void {
   container.innerHTML = `
@@ -47,6 +48,7 @@ export function renderTitleScene(container: HTMLElement): void {
             <span class="btn-icon">&#x2691;</span>
             旅を始める
           </button>
+          <button class="rfid-btn" id="title-rfid-btn" style="display:none">🔌 RFID</button>
           <p class="btn-note">※ 音声推奨。静かな場所でお楽しみください。</p>
         </div>
       </div>
@@ -64,6 +66,24 @@ export function renderTitleScene(container: HTMLElement): void {
   document.getElementById('btn-start')?.addEventListener('click', () => {
     navigateTo('diagnosis');
   });
+
+  const rfidBtn = document.getElementById('title-rfid-btn') as HTMLButtonElement | null;
+  if (rfidBtn && rfidManager.isSupported()) {
+    rfidBtn.style.display = '';
+    function updateRfidBtn(): void {
+      if (!rfidBtn) return;
+      rfidBtn.textContent = rfidManager.isConnected ? '📡 RFID接続中' : '🔌 RFID';
+      rfidBtn.classList.toggle('connected', rfidManager.isConnected);
+    }
+    updateRfidBtn();
+    rfidBtn.addEventListener('click', () => {
+      if (rfidManager.isConnected) {
+        void rfidManager.disconnect().then(updateRfidBtn);
+      } else {
+        void rfidManager.connect().then(updateRfidBtn);
+      }
+    });
+  }
 }
 
 async function runTitleAnimation(): Promise<void> {
