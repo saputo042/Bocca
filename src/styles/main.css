@@ -4551,6 +4551,67 @@ body {
 .battle-hint{font-size:0.8rem;color:var(--text-muted)}
 .mechanic-hint{font-size:0.88rem;color:var(--text-muted);text-align:center;font-style:italic}
 
+/* =============================================
+   RFID ギミック
+============================================= */
+
+/* ステージヘッダーの接続ボタン */
+.rfid-btn {
+  padding: 0.3rem 0.7rem;
+  background: rgba(80, 80, 160, 0.12);
+  border: 1px solid rgba(100, 100, 200, 0.3);
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  align-self: center;
+}
+.rfid-btn:hover {
+  background: rgba(100, 100, 200, 0.22);
+  border-color: rgba(120, 120, 220, 0.5);
+  color: var(--text-secondary);
+}
+.rfid-btn.connected {
+  background: rgba(30, 180, 90, 0.12);
+  border-color: rgba(40, 200, 100, 0.45);
+  color: #4ade80;
+}
+.rfid-btn.connected:hover {
+  background: rgba(30, 180, 90, 0.22);
+}
+
+/* 従者選択モーダル内のRFIDヒント */
+.rfid-hint {
+  font-size: 0.78rem;
+  color: #4ade80;
+  letter-spacing: 0.04em;
+  margin: -0.25rem 0 0;
+}
+
+/* 駒番号バッジ（servant chip 内） */
+.chip-piece {
+  margin-left: auto;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  padding: 0.05rem 0.35rem;
+  white-space: nowrap;
+}
+
+/* RFIDスキャン成功時のフラッシュ */
+@keyframes rfid-flash {
+  0%   { background: rgba(40, 200, 100, 0.35); border-color: rgba(40, 200, 100, 0.9); }
+  100% { background: rgba(201, 162, 39, 0.06); border-color: rgba(201, 162, 39, 0.2); }
+}
+.servant-chip.selectable.rfid-selected {
+  animation: rfid-flash 0.35s ease forwards;
+}
+
 /* 診断モード選択 */
 .diag-mode-select{display:flex;flex-direction:column;align-items:center;gap:1.5rem;padding:1rem 0}
 .diag-mode-subtitle{font-size:0.9rem;color:var(--text-muted);text-align:center;max-width:360px;line-height:1.6}

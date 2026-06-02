@@ -3,7 +3,9 @@
 import {
   navigateTo, getState, resetGameState, changeHp, sacrificeServant, recordStageResult,
   advanceStage, sleep, typewriter, createParticles, addGold, acquireNextServant, logRhythm,
+  getServantByPiece, getServantPieceName,
 } from '../utils/gameState';
+import { rfidManager } from '../utils/rfid';
 import { findByDimension, TAROT_SYMBOLS, type TarotServant } from '../data/tarot';
 import { STAGES } from '../data/stages';
 import { getLeverConfig, GAME_CONFIG } from '../data/gameConfig';
@@ -41,6 +43,9 @@ function flashDamage(): void {
 
 function stageLayout(stageId: number, stageName: string, area: string): string {
   const state = getState();
+  const rfidLabel = rfidManager.isConnected ? '📡 RFID接続中' : '🔌 RFID';
+  const rfidClass = rfidManager.isConnected ? 'rfid-btn connected' : 'rfid-btn';
+  const rfidHidden = rfidManager.isSupported() ? '' : 'style="display:none"';
   return `
     <div class="scene scene-stage" id="scene-stage">
       <div class="bg-overlay"></div>
@@ -55,6 +60,7 @@ function stageLayout(stageId: number, stageName: string, area: string): string {
           <span class="stage-hp-label">HP</span>
           ${hpBarHTML(state.hp, state.maxHp)}
         </div>
+        <button class="${rfidClass}" id="rfid-btn" ${rfidHidden}>${rfidLabel}</button>
       </div>
       <div class="stage-body" id="stage-body">
         <div class="stage-narrative" id="stage-narrative"></div>
@@ -62,6 +68,25 @@ function stageLayout(stageId: number, stageName: string, area: string): string {
       </div>
     </div>
   `;
+}
+
+function setupRfidButton(container: HTMLElement): void {
+  const btn = container.querySelector<HTMLButtonElement>('#rfid-btn');
+  if (!btn) return;
+
+  function updateBtn(): void {
+    if (!btn) return;
+    btn.textContent = rfidManager.isConnected ? '📡 RFID接続中' : '🔌 RFID';
+    btn.classList.toggle('connected', rfidManager.isConnected);
+  }
+
+  btn.addEventListener('click', () => {
+    if (rfidManager.isConnected) {
+      void rfidManager.disconnect().then(updateBtn);
+    } else {
+      void rfidManager.connect().then(updateBtn);
+    }
+  });
 }
 
 async function narrateText(text: string, speed = 40): Promise<void> {
@@ -89,7 +114,7 @@ function proceedNext(container: HTMLElement): void {
   }
 }
 
-// Servant selection modal - returns servant id or -1 for cancel
+// 従者選択モーダル。RFIDが接続中なら駒スキャンでも選択できる。
 function showServantSelectModal(title: string): Promise<number> {
   return new Promise(resolve => {
     const alive = aliveServants();
@@ -97,10 +122,16 @@ function showServantSelectModal(title: string): Promise<number> {
 
     const overlay = document.createElement('div');
     overlay.className = 'servant-select-overlay';
+
+    const rfidHint = rfidManager.isConnected
+      ? '<p class="rfid-hint">📡 コマをかざして選択できます</p>'
+      : '';
+
     overlay.innerHTML = `
       <div class="servant-select-modal">
         <h3 class="servant-modal-title">${title}</h3>
         <p class="servant-modal-desc">犠牲にする従者を選んでください</p>
+        ${rfidHint}
         <div class="servant-modal-list" id="servant-modal-list"></div>
         <button class="btn-cancel" id="btn-cancel-sacrifice">キャンセル</button>
       </div>
@@ -108,17 +139,41 @@ function showServantSelectModal(title: string): Promise<number> {
 
     const list = overlay.querySelector('#servant-modal-list')!;
     alive.forEach(s => {
+      const pieceLabel = getServantPieceName(s.id);
       const btn = document.createElement('button');
       btn.className = 'servant-chip selectable';
-      btn.innerHTML = `<span class="chip-symbol">${TAROT_SYMBOLS[s.id] ?? ''}</span><span class="chip-name">${s.name}</span><span class="chip-skill">${s.skill}</span>`;
-      btn.addEventListener('click', () => { overlay.remove(); resolve(s.id); });
+      btn.dataset.sid = String(s.id);
+      btn.innerHTML = `
+        <span class="chip-symbol">${TAROT_SYMBOLS[s.id] ?? ''}</span>
+        <span class="chip-name">${s.name}</span>
+        <span class="chip-skill">${s.skill}</span>
+        ${pieceLabel ? `<span class="chip-piece">${pieceLabel}</span>` : ''}
+      `;
+      btn.addEventListener('click', () => { cleanup(); resolve(s.id); });
       list.appendChild(btn);
     });
 
     overlay.querySelector('#btn-cancel-sacrifice')?.addEventListener('click', () => {
-      overlay.remove();
+      cleanup();
       resolve(-1);
     });
+
+    // RFID スキャンで従者を選択
+    let unsubscribe: (() => void) | null = null;
+    if (rfidManager.isConnected) {
+      unsubscribe = rfidManager.onScan(piece => {
+        const servant = getServantByPiece(piece);
+        if (!servant) return;
+        const chipBtn = list.querySelector<HTMLButtonElement>(`[data-sid="${servant.id}"]`);
+        if (chipBtn) chipBtn.classList.add('rfid-selected');
+        setTimeout(() => { cleanup(); resolve(servant.id); }, 350);
+      });
+    }
+
+    function cleanup(): void {
+      unsubscribe?.();
+      overlay.remove();
+    }
 
     document.body.appendChild(overlay);
   });
@@ -160,13 +215,10 @@ function addNextButton(container: HTMLElement, parentEl: HTMLElement): void {
 // ST-01 茨の湖（ボートで横断）
 // ===============================
 // 【メカニクス】
-//   AとDを拍に合わせて交互に押す（リズム漕ぎ）
-//   On-Beat正解キー → 大きく進む、ダメージなし
-//   Off-Beat正解キー → 少し進む、HP -1
-//   逆キー押し → HP -2、進まない
-//   拍を外す（未押し） → 従者HPダメージ（茨に傷つく）
-//   従者HP 0 → 従者が自動生贄
-//   プレイヤーHP 0 → ゲームオーバー
+//   3レーンを茨の密集地帯が前方から迫ってくる
+//   A:左移動 / D:右移動 でボートを操舵して安全レーンへ
+//   茨にぶつかると → 従者HPダメージ（従者なければ自分がダメージ）
+//   回避成功 + 拍に合わせた操舵 → ボーナス進行
 //   進行100% → クリア
 
 async function runStage01(container: HTMLElement): Promise<void> {
@@ -186,56 +238,56 @@ async function runStage01(container: HTMLElement): Promise<void> {
   }
   await sleep(400);
 
-  const initHpPct = Math.max(0, Math.round((state.hp / state.maxHp) * 100));
   const servantMaxHp = 20;
   let servantHp = servantMaxHp;
 
   setMechanic(`
     <div class="pain-overlay" id="pain-overlay"></div>
-    <div class="st01-boat-scene">
-      ${rowingServant ? `
-        <div class="st01-servant-hp-row">
-          <span class="st01-servant-label">${rowingServant.name} HP</span>
-          <div class="st01-servant-hp-track">
-            <div class="st01-servant-hp-fill" id="st01-servant-fill" style="width:100%"></div>
-          </div>
-          <span class="st01-servant-hp-val" id="st01-servant-val">${servantHp}/${servantMaxHp}</span>
+    ${rowingServant ? `
+      <div class="st01-servant-hp-row">
+        <span class="st01-servant-label">${rowingServant.name} HP</span>
+        <div class="st01-servant-hp-track">
+          <div class="st01-servant-hp-fill" id="st01-servant-fill" style="width:100%"></div>
         </div>
-      ` : ''}
-
-      <div class="st01-progress-row">
-        <span class="st01-progress-label">対岸まで</span>
-        <div class="progress-bar-container">
-          <div class="progress-bar-fill" id="st01-progress-bar" style="width:0%"></div>
-        </div>
-        <span class="st01-progress-pct" id="st01-progress-pct">0%</span>
+        <span class="st01-servant-hp-val" id="st01-servant-val">${servantHp}/${servantMaxHp}</span>
       </div>
-
-      ${rowingServant ? `
-        <div class="st01-servant-dialogue" id="st01-dialogue" style="opacity:0">
-          <span class="st01-dialogue-name">${rowingServant.name}</span>
-          <span class="st01-dialogue-text" id="st01-dialogue-text"></span>
-        </div>
-      ` : ''}
-
-      <div class="st01-key-row">
-        <button class="st01-key-btn active-key" id="btn-key-a">A</button>
-        <button class="st01-key-btn" id="btn-key-d">D</button>
+    ` : ''}
+    <div class="st01-progress-row">
+      <span class="st01-progress-label">対岸まで</span>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="st01-progress-bar" style="width:0%"></div>
       </div>
-      <p class="mechanic-hint">
-        光っているキーを拍に合わせて交互に押せ。<br>
-        On-Beatで漕げば速く進み、茨の痛みも和らぐ。
-      </p>
+      <span class="st01-progress-pct" id="st01-progress-pct">0%</span>
+    </div>
+    ${rowingServant ? `
+      <div class="st01-servant-dialogue" id="st01-dialogue" style="opacity:0">
+        <span class="st01-dialogue-name">${rowingServant.name}</span>
+        <span class="st01-dialogue-text" id="st01-dialogue-text"></span>
+      </div>
+    ` : ''}
+
+    <div class="st01-track-wrap">
+      <div class="st01-track-row">
+        <div class="st01-lane" id="st01-lane-0"></div>
+        <div class="st01-lane" id="st01-lane-1"></div>
+        <div class="st01-lane" id="st01-lane-2"></div>
+      </div>
+      <div class="st01-judge-line"></div>
+      <div class="st01-boat-slots">
+        <div class="st01-boat-slot" id="boat-slot-0"></div>
+        <div class="st01-boat-slot active-slot" id="boat-slot-1">⛵</div>
+        <div class="st01-boat-slot" id="boat-slot-2"></div>
+      </div>
     </div>
 
-    <div class="st01-hp-large">
-      <span class="st01-hp-large-label">HP</span>
-      <div class="st01-hp-large-track">
-        <div class="st01-hp-large-fill" id="st01-hp-fill" style="width:${initHpPct}%"></div>
-      </div>
-      <span class="st01-hp-large-value" id="st01-hp-val">${state.hp} / ${state.maxHp}</span>
+    <div class="st01-key-row">
+      <button class="st01-key-btn" id="btn-key-a">◀ A</button>
+      <button class="st01-key-btn" id="btn-key-d">D ▶</button>
     </div>
-
+    <p class="mechanic-hint">
+      茨の密集地帯を避けよ。A:左 / D:右<br>
+      拍に合わせて回避すると速く進む。
+    </p>
     <div class="stage-result" id="stage-result" style="display:none"></div>
   `);
 
@@ -243,10 +295,12 @@ async function runStage01(container: HTMLElement): Promise<void> {
   let progress = 0;
   let totalPlayerDmg = 0;
   let servantSacrificed = false;
-  let expectedKey: 'a' | 'd' = 'a';
-  let pressedThisBeat = false;
+  let playerLane = 1; // 0=左 1=中央 2=右
+  let lastMoveWasOnBeat = false;
+  let beatCount = 0;
   const shownMilestones = new Set<number>();
   let dialogueLocked = false;
+  const beatMs = Math.round(60000 / getBPM());
 
   function updateProgressDisplay(): void {
     const bar = document.getElementById('st01-progress-bar');
@@ -262,17 +316,13 @@ async function runStage01(container: HTMLElement): Promise<void> {
     if (val) val.textContent = `${servantHp}/${servantMaxHp}`;
   }
 
-  function updateHpLargeDisplay(): void {
-    updateHpDisplay();
-    const fill = document.getElementById('st01-hp-fill');
-    const val = document.getElementById('st01-hp-val');
-    if (fill) fill.style.width = `${Math.max(0, Math.round((state.hp / state.maxHp) * 100))}%`;
-    if (val) val.textContent = `${state.hp} / ${state.maxHp}`;
-  }
-
-  function updateKeyLights(): void {
-    document.getElementById('btn-key-a')?.classList.toggle('active-key', expectedKey === 'a');
-    document.getElementById('btn-key-d')?.classList.toggle('active-key', expectedKey === 'd');
+  function updateBoatDisplay(): void {
+    for (let i = 0; i < 3; i++) {
+      const slot = document.getElementById(`boat-slot-${i}`);
+      if (!slot) continue;
+      slot.textContent = i === playerLane ? '⛵' : '';
+      slot.classList.toggle('active-slot', i === playerLane);
+    }
   }
 
   async function showServantLine(text: string): Promise<void> {
@@ -293,49 +343,91 @@ async function runStage01(container: HTMLElement): Promise<void> {
     dialogueLocked = false;
   }
 
-  function handleKeyPress(key: 'a' | 'd'): void {
+  function flashLane(laneIdx: number, type: 'safe' | 'hit'): void {
+    const el = document.getElementById(`st01-lane-${laneIdx}`);
+    if (!el) return;
+    el.classList.add(`flash-${type}`);
+    setTimeout(() => el.classList.remove(`flash-${type}`), 320);
+  }
+
+  function spawnThornWave(): void {
+    if (!gameActive) return;
+    const safeLane = Math.floor(Math.random() * 3);
+    const animDuration = Math.round(2.5 * beatMs);
+
+    for (let i = 0; i < 3; i++) {
+      if (i === safeLane) continue;
+      const lane = document.getElementById(`st01-lane-${i}`);
+      if (!lane) continue;
+      const thorn = document.createElement('div');
+      thorn.className = 'st01-thorn-block';
+      thorn.style.animationDuration = `${animDuration}ms`;
+      thorn.innerHTML = '<span class="st01-thorn-inner">🌿🌿🌿<br>🌿🌿🌿<br>🌿🌿🌿</span>';
+      lane.appendChild(thorn);
+      thorn.addEventListener('animationend', () => thorn.remove(), { once: true });
+    }
+
+    // 茨がレーン底部（判定ライン）に到達するタイミングで判定
+    setTimeout(() => {
+      if (!gameActive) return;
+      if (playerLane === safeLane) {
+        // 回避成功
+        const bonus = lastMoveWasOnBeat ? 4.5 : 2.5;
+        progress = Math.min(100, progress + bonus);
+        flashLane(safeLane, 'safe');
+        playSFX(lastMoveWasOnBeat ? 'onbeat' : 'select');
+        updateProgressDisplay();
+        for (const ms of [25, 50, 75]) {
+          if (progress >= ms && !shownMilestones.has(ms) && rowingServant) {
+            shownMilestones.add(ms);
+            showServantLine(rowingServant.dialogue.rowing);
+          }
+        }
+        if (progress >= 100) finish('success');
+      } else {
+        // 被弾
+        flashLane(playerLane, 'hit');
+        flashDamage();
+        document.getElementById('pain-overlay')?.classList.add('active');
+        setTimeout(() => document.getElementById('pain-overlay')?.classList.remove('active'), 250);
+
+        if (rowingServant && !servantSacrificed) {
+          servantHp = Math.max(0, servantHp - 5);
+          updateServantHpDisplay();
+          if (servantHp === 5) showServantLine(rowingServant.dialogue.pain);
+          if (servantHp <= 0) {
+            servantSacrificed = true;
+            showServantLine(rowingServant.dialogue.sacrifice);
+            sacrificeServant(rowingServant.id);
+            playSFX('sacrifice');
+          }
+        } else {
+          // 従者なし → 直接ダメージ
+          changeHp(-6);
+          totalPlayerDmg += 6;
+          updateHpDisplay();
+          if (state.hp <= 0) finish('dead');
+        }
+      }
+    }, Math.round(animDuration * 0.62));
+  }
+
+  function moveLane(dir: 'a' | 'd'): void {
     if (!gameActive) return;
     const { isOnBeat } = checkOnBeat();
+    lastMoveWasOnBeat = isOnBeat;
     flashActionBeat(isOnBeat);
 
-    // 押したキーをアニメーション
-    const btn = document.getElementById(`btn-key-${key}`);
+    const prev = playerLane;
+    if (dir === 'a') playerLane = Math.max(0, playerLane - 1);
+    else playerLane = Math.min(2, playerLane + 1);
+    if (playerLane !== prev) updateBoatDisplay();
+
+    const btn = document.getElementById(`btn-key-${dir}`);
     if (btn) {
       btn.classList.add('pressed-key');
       setTimeout(() => btn.classList.remove('pressed-key'), 110);
     }
-
-    if (key === expectedKey) {
-      pressedThisBeat = true;
-      if (isOnBeat) {
-        progress = Math.min(100, progress + 4.5);
-        playSFX('onbeat');
-      } else {
-        progress = Math.min(100, progress + 1.5);
-        changeHp(-1);
-        totalPlayerDmg++;
-        document.getElementById('pain-overlay')?.classList.add('active');
-        setTimeout(() => document.getElementById('pain-overlay')?.classList.remove('active'), 180);
-      }
-    } else {
-      // 逆キー → ダメージ
-      changeHp(-2);
-      totalPlayerDmg += 2;
-      flashDamage();
-    }
-
-    updateHpLargeDisplay();
-    updateProgressDisplay();
-
-    for (const ms of [25, 50, 75]) {
-      if (progress >= ms && !shownMilestones.has(ms) && rowingServant) {
-        shownMilestones.add(ms);
-        showServantLine(rowingServant.dialogue.rowing);
-      }
-    }
-
-    if (state.hp <= 0) { finish('dead'); return; }
-    if (progress >= 100) { finish('success'); }
   }
 
   function finish(outcome: 'success' | 'dead'): void {
@@ -351,42 +443,23 @@ async function runStage01(container: HTMLElement): Promise<void> {
   function onKeyDown(e: KeyboardEvent): void {
     if (!gameActive) return;
     const k = e.key.toLowerCase();
-    if (k === 'a') handleKeyPress('a');
-    else if (k === 'd') handleKeyPress('d');
+    if (k === 'a') moveLane('a');
+    else if (k === 'd') moveLane('d');
   }
 
-  // 拍ごとにキーを交互に切り替え、進行ベース増加、ミスした拍は従者ダメージ
-  const beatMs = Math.round(60000 / getBPM());
+  // 拍ごとにベース進行、2拍ごとに茨の波を生成
   const beatTicker = setInterval(() => {
     if (!gameActive) return;
-
-    // 前の拍で押せなかった → 従者ダメージ
-    if (!pressedThisBeat && rowingServant && !servantSacrificed) {
-      servantHp = Math.max(0, servantHp - 2);
-      updateServantHpDisplay();
-      if (servantHp === 5) showServantLine(rowingServant.dialogue.pain);
-      if (servantHp <= 0) {
-        servantSacrificed = true;
-        showServantLine(rowingServant.dialogue.sacrifice);
-        sacrificeServant(rowingServant.id);
-        playSFX('sacrifice');
-      }
-    }
-
-    // 自動ベース進行（漕がなくても少しずつ）
-    progress = Math.min(100, progress + 0.4);
+    beatCount++;
+    progress = Math.min(100, progress + 1.2);
     updateProgressDisplay();
     if (progress >= 100) { finish('success'); return; }
-
-    // 次の拍へ
-    expectedKey = expectedKey === 'a' ? 'd' : 'a';
-    pressedThisBeat = false;
-    updateKeyLights();
+    if (beatCount % 2 === 0) spawnThornWave();
   }, beatMs);
 
   document.addEventListener('keydown', onKeyDown);
-  document.getElementById('btn-key-a')?.addEventListener('click', () => handleKeyPress('a'));
-  document.getElementById('btn-key-d')?.addEventListener('click', () => handleKeyPress('d'));
+  document.getElementById('btn-key-a')?.addEventListener('click', () => moveLane('a'));
+  document.getElementById('btn-key-d')?.addEventListener('click', () => moveLane('d'));
 
   async function finishStage01(): Promise<void> {
     const resultEl = document.getElementById('stage-result')!;
@@ -398,14 +471,12 @@ async function runStage01(container: HTMLElement): Promise<void> {
       msg = `対岸に辿り着いた。${totalPlayerDmg > 0 ? `HPが${totalPlayerDmg}削られた。` : '傷ひとつなく渡り切った。'}`;
     }
     await typewriter(resultEl, msg, 40);
-
     recordStageResult({
       stageId: 1, stageName: stageData.name,
       outcome: servantSacrificed ? 'sacrifice' : 'success',
       sacrificedServantName: servantSacrificed ? rowingServant?.name : undefined,
       hpDelta: -totalPlayerDmg,
     });
-
     await sleep(800);
     addNextButton(container, resultEl);
   }
@@ -1884,6 +1955,9 @@ export function renderStageScene(container: HTMLElement): void {
 
   const runner = stageRunners[state.currentStage];
   if (runner) {
+    // runner の同期部分（container.innerHTML = stageLayout(...)）が先に走るため
+    // Promise を受け取った直後に DOM へアクセスできる
     runner(container).catch(err => console.error('Stage error:', err));
+    setupRfidButton(container);
   }
 }

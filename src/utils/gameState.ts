@@ -5,6 +5,9 @@ import type { TarotServant } from '../data/tarot';
 import { GAME_CONFIG } from '../data/gameConfig';
 import type { RhythmLogEntry } from './rhythm';
 
+// RFID 駒 → 従者ID マップ（piece_N → servantId）
+let _rfidPieceMap: Map<string, number> = new Map();
+
 // ===============================
 // 型定義
 // ===============================
@@ -83,11 +86,11 @@ export function addGold(amount: number): void {
 }
 
 export function getState(): GameState { return _state; }
-export function resetState(): void { _state = createInitial(); }
+export function resetState(): void { _state = createInitial(); _rfidPieceMap = new Map(); }
 
 // Aliases for scenes that use old names
 export function getGameState(): GameState { return _state; }
-export function resetGameState(): void { _state = createInitial(); }
+export function resetGameState(): void { _state = createInitial(); _rfidPieceMap = new Map(); }
 
 export function changeHp(delta: number): void {
   _state.hp = Math.max(0, Math.min(_state.maxHp, _state.hp + delta));
@@ -133,6 +136,25 @@ export function initServantPool(servants: TarotServant[]): void {
   _state.nextServantIndex = 0;
   _state.servants = [];
   _state.aliveServants = [];
+  // RFID マップ: piece_1 〜 piece_N を従者プールの順番で割り当て
+  _rfidPieceMap = new Map<string, number>(
+    servants.map((s, i): [string, number] => [`piece_${i + 1}`, s.id])
+  );
+}
+
+// RFID 駒名から生存中の従者を返す
+export function getServantByPiece(pieceName: string): TarotServant | null {
+  const servantId = _rfidPieceMap.get(pieceName);
+  if (servantId === undefined) return null;
+  return _state.aliveServants.find(s => s.id === servantId) ?? null;
+}
+
+// 従者IDに対応する駒名を返す（例: "piece_1" → "コマ1"）
+export function getServantPieceName(servantId: number): string | null {
+  for (const [pieceName, sid] of _rfidPieceMap) {
+    if (sid === servantId) return `コマ${pieceName.replace('piece_', '')}`;
+  }
+  return null;
 }
 
 export function acquireNextServant(): TarotServant | null {
