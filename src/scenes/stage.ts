@@ -1848,7 +1848,7 @@ async function runStageRoulette(container: HTMLElement): Promise<void> {
           <span class="rlt-cnt-val">${bulletCount} 発</span>
           <button class="rlt-cnt-btn" id="btn-blt-inc">＋</button>
         </div>
-        <p class="rlt-reward-hint">不発なら <strong>${bulletCount}</strong> 個のアイテム・従者を入手</p>
+        <p class="rlt-reward-hint">撃つと <strong>${bulletCount}</strong> 個のアイテム・従者を入手（弾が出たら追加ペナルティ）</p>
         <div class="rlt-target-row">
           <button class="rlt-target-btn${targetMode === 'self' ? ' active' : ''}" id="rlt-self">自分を撃つ</button>
           ${alive.length > 0 ? `<button class="rlt-target-btn${targetMode === 'servant' ? ' active' : ''}" id="rlt-servant">従者を撃つ</button>` : ''}
@@ -1905,6 +1905,10 @@ async function runStageRoulette(container: HTMLElement): Promise<void> {
     await sleep(500);
     resultEl.textContent = '';
 
+    // 常にアイテムを入手
+    const rewards = giveRewards(bulletCount);
+    const rewardLines = rewards.map(r => `・${r}`).join('\n');
+
     const fired = Math.random() < bulletCount / 6;
 
     if (fired) {
@@ -1913,23 +1917,19 @@ async function runStageRoulette(container: HTMLElement): Promise<void> {
       if (targetMode === 'servant' && targetServantId !== null) {
         const sac = sacrificeServant(targetServantId);
         const sacName = sac?.name ?? '従者';
-        await typewriter(resultEl, `──バン！\n\n${sacName}が倒れた……`, 50);
+        await typewriter(resultEl, `──バン！\n\n${sacName}が倒れた……\n\n手に入れた:\n${rewardLines}`, 45);
         recordStageResult({ stageId: 10, stageName: stageData.name, outcome: 'sacrifice', sacrificedServantName: sacName, hpDelta: 0 });
       } else {
         const dmg = bulletCount * 5;
         changeHp(-dmg);
         updateHpDisplay();
-        await typewriter(resultEl, `──バン！\n\nHP −${dmg}。`, 50);
+        await typewriter(resultEl, `──バン！\n\nHP −${dmg}。\n\n手に入れた:\n${rewardLines}`, 45);
         recordStageResult({ stageId: 10, stageName: stageData.name, outcome: 'fail', hpDelta: -dmg });
         if (getState().gameOver) { await sleep(500); showGameOver(container); return; }
       }
     } else {
       playSFX('onbeat');
-      await typewriter(resultEl, `──カチッ。\n\n不発だ。`, 50);
-      await sleep(300);
-      const rewards = giveRewards(bulletCount);
-      const lines = rewards.map(r => `・${r}`).join('\n');
-      resultEl.textContent += `\n\n手に入れた:\n${lines}`;
+      await typewriter(resultEl, `──カチッ。不発だ。\n\n手に入れた:\n${rewardLines}`, 45);
       recordStageResult({ stageId: 10, stageName: stageData.name, outcome: 'item', choice: `${bulletCount}発装填`, hpDelta: 0 });
     }
 
