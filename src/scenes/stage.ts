@@ -106,7 +106,7 @@ function aliveServants(): TarotServant[] {
 function proceedNext(container: HTMLElement): void {
   const state = getState();
   if (state.gameOver) { showGameOver(container); return; }
-  if (state.currentStage >= 9) {
+  if (state.currentStage >= 10) {
     navigateTo('finale');
   } else {
     advanceStage();
@@ -1807,6 +1807,158 @@ function buildGraveLines(state: ReturnType<typeof getState>): string[] {
   return lines.slice(0, 3);
 }
 
+// ===============================
+// ST-09 運命の引き金（ロシアンルーレット）
+// ===============================
+
+async function runStageRoulette(container: HTMLElement): Promise<void> {
+  const stageData = STAGES[9];
+
+  container.innerHTML = stageLayout(9, stageData.name, stageData.area);
+  createParticles(document.getElementById('stage-particles')!, 15);
+
+  await sleep(300);
+  await narrateText(stageData.description, 40);
+  await sleep(400);
+
+  let bulletCount = 1;
+  let targetMode: 'self' | 'servant' = 'self';
+  let targetServantId: number | null = null;
+  let rfidUnsub: (() => void) | null = null;
+
+  function renderUI(): void {
+    const alive = aliveServants();
+    if (alive.length > 0 && targetServantId === null) targetServantId = alive[0].id;
+
+    let chambers = '';
+    for (let i = 0; i < 6; i++) {
+      chambers += `<div class="rlt-chamber${i < bulletCount ? ' loaded' : ''}"></div>`;
+    }
+
+    const servantOpts = alive.map(s =>
+      `<option value="${s.id}"${s.id === targetServantId ? ' selected' : ''}>${s.name}${getServantPieceName(s.id) ? ` (${getServantPieceName(s.id)})` : ''}</option>`
+    ).join('');
+
+    setMechanic(`
+      <div class="rlt-wrap">
+        <div class="rlt-cylinder">${chambers}</div>
+        <p class="rlt-prob">${bulletCount} / 6 発　発射確率 <strong>${Math.round(bulletCount / 6 * 100)}%</strong></p>
+        <div class="rlt-count-row">
+          <button class="rlt-cnt-btn" id="btn-blt-dec">−</button>
+          <span class="rlt-cnt-val">${bulletCount} 発</span>
+          <button class="rlt-cnt-btn" id="btn-blt-inc">＋</button>
+        </div>
+        <p class="rlt-reward-hint">不発なら <strong>${bulletCount}</strong> 個のアイテム・従者を入手</p>
+        <div class="rlt-target-row">
+          <button class="rlt-target-btn${targetMode === 'self' ? ' active' : ''}" id="rlt-self">自分を撃つ</button>
+          ${alive.length > 0 ? `<button class="rlt-target-btn${targetMode === 'servant' ? ' active' : ''}" id="rlt-servant">従者を撃つ</button>` : ''}
+        </div>
+        ${targetMode === 'servant' && alive.length > 0 ? `
+          <select class="rlt-servant-sel" id="rlt-servant-sel">${servantOpts}</select>
+          <p class="rfid-hint" style="font-size:0.78rem;margin-top:0.3rem">📡 コマをかざして選択</p>
+        ` : ''}
+        ${targetMode === 'self' ? `<p class="rlt-self-dmg">発射時ダメージ: HP −${bulletCount * 5}</p>` : ''}
+        <button class="btn-sacrifice rlt-fire-btn" id="btn-rlt-fire">🔫 引き金を引く</button>
+        <div class="stage-result" id="stage-result" style="display:none"></div>
+      </div>
+    `);
+
+    document.getElementById('btn-blt-dec')?.addEventListener('click', () => {
+      if (bulletCount > 1) { bulletCount--; renderUI(); }
+    });
+    document.getElementById('btn-blt-inc')?.addEventListener('click', () => {
+      if (bulletCount < 6) { bulletCount++; renderUI(); }
+    });
+    document.getElementById('rlt-self')?.addEventListener('click', () => { targetMode = 'self'; renderUI(); });
+    document.getElementById('rlt-servant')?.addEventListener('click', () => { targetMode = 'servant'; renderUI(); });
+    const selEl = document.getElementById('rlt-servant-sel') as HTMLSelectElement | null;
+    if (selEl) {
+      if (selEl.value) targetServantId = parseInt(selEl.value);
+      selEl.addEventListener('change', () => { targetServantId = parseInt(selEl.value); });
+    }
+    document.getElementById('btn-rlt-fire')?.addEventListener('click', () => void handleFire());
+  }
+
+  rfidUnsub = rfidManager.onScan(piece => {
+    const s = getServantByPiece(piece);
+    if (!s) { showFuTaiou('不対応'); return; }
+    targetServantId = s.id;
+    targetMode = 'servant';
+    renderUI();
+  });
+
+  renderUI();
+
+  async function handleFire(): Promise<void> {
+    rfidUnsub?.();
+    rfidUnsub = null;
+
+    const resultEl = document.getElementById('stage-result')!;
+    resultEl.style.display = 'block';
+
+    // ボタン群を無効化
+    ['btn-blt-dec', 'btn-blt-inc', 'rlt-self', 'rlt-servant', 'btn-rlt-fire', 'rlt-servant-sel'].forEach(id => {
+      document.getElementById(id)?.setAttribute('disabled', '');
+    });
+
+    await typewriter(resultEl, '………', 180);
+    await sleep(500);
+    resultEl.textContent = '';
+
+    const fired = Math.random() < bulletCount / 6;
+
+    if (fired) {
+      playSFX('sacrifice');
+      flashDamage();
+      if (targetMode === 'servant' && targetServantId !== null) {
+        const sac = sacrificeServant(targetServantId);
+        const sacName = sac?.name ?? '従者';
+        await typewriter(resultEl, `──バン！\n\n${sacName}が倒れた……`, 50);
+        recordStageResult({ stageId: 10, stageName: stageData.name, outcome: 'sacrifice', sacrificedServantName: sacName, hpDelta: 0 });
+      } else {
+        const dmg = bulletCount * 5;
+        changeHp(-dmg);
+        updateHpDisplay();
+        await typewriter(resultEl, `──バン！\n\nHP −${dmg}。`, 50);
+        recordStageResult({ stageId: 10, stageName: stageData.name, outcome: 'fail', hpDelta: -dmg });
+        if (getState().gameOver) { await sleep(500); showGameOver(container); return; }
+      }
+    } else {
+      playSFX('onbeat');
+      await typewriter(resultEl, `──カチッ。\n\n不発だ。`, 50);
+      await sleep(300);
+      const rewards = giveRewards(bulletCount);
+      const lines = rewards.map(r => `・${r}`).join('\n');
+      resultEl.textContent += `\n\n手に入れた:\n${lines}`;
+      recordStageResult({ stageId: 10, stageName: stageData.name, outcome: 'item', choice: `${bulletCount}発装填`, hpDelta: 0 });
+    }
+
+    await sleep(800);
+    addNextButton(container, resultEl);
+  }
+
+  function giveRewards(count: number): string[] {
+    const st = getState();
+    const results: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const r = Math.random();
+      if (r < 0.15) { st.hasPotion = true; results.push('回復薬'); }
+      else if (r < 0.28) { st.hasSword = true; results.push('剣'); }
+      else if (r < 0.40) { st.hasKey = true; results.push('鍵'); }
+      else if (r < 0.52) { st.hasFood = true; results.push('携帯食'); }
+      else if (r < 0.72) {
+        const srv = acquireNextServant();
+        results.push(srv ? `従者: ${srv.name}` : (() => { addGold(15); return '金貨 15'; })());
+      } else {
+        const g = 10 + Math.floor(Math.random() * 11);
+        addGold(g);
+        results.push(`金貨 ${g}`);
+      }
+    }
+    return results;
+  }
+}
+
 async function runStage09(container: HTMLElement): Promise<void> {
   const state = getState();
   const stageData = STAGES[8];
@@ -1815,7 +1967,7 @@ async function runStage09(container: HTMLElement): Promise<void> {
   // クライマックスBGM（ST-08で切替済みだがここでも保証）
   switchBGMTrack('climax');
 
-  container.innerHTML = stageLayout(9, stageData.name, stageData.area);
+  container.innerHTML = stageLayout(10, stageData.name, stageData.area);
   createParticles(document.getElementById('stage-particles')!, 30);
 
   // ── Phase 1: Grave（宣告）── 強制ナラティブ ──
@@ -2149,7 +2301,8 @@ export function renderStageScene(container: HTMLElement): void {
     6: runStage06,
     7: runStage07,
     8: runStage08,
-    9: runStage09,
+    9: runStageRoulette,
+    10: runStage09,
   };
 
   const runner = stageRunners[state.currentStage];

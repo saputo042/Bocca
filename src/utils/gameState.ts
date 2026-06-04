@@ -171,7 +171,7 @@ export function setBigFive(scores: BigFiveScores): void {
 }
 
 export function advanceStage(): void {
-  if (_state.currentStage < 9) {
+  if (_state.currentStage < 10) {
     _state.currentStage++;
   }
 }

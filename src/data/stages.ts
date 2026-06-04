@@ -93,6 +93,16 @@ export const STAGES: StageData[] = [
     deathDescription: '崩落した線路に突入した。',
   },
   {
+    id: 10,
+    name: '運命の引き金',
+    area: '賭場',
+    description: '廃れた賭場の奥。古びたリボルバーが一丁、テーブルに置かれている。弾を好きな数だけ込めろ。不発なら込めた数だけ報酬が手に入る——だが弾が出るかどうかは運次第だ。',
+    mechanic: 'selection',
+    sacrificeCondition: null,
+    deathPossible: false,
+    deathDescription: '',
+  },
+  {
     id: 9,
     name: '真実の口',
     area: '問の間',

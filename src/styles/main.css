@@ -5257,3 +5257,129 @@ body {
 .boss-phase-badge[data-phase="Allegro"] { color: #f59e0b; border-color: rgba(245,158,11,0.4); }
 .boss-phase-badge[data-phase="Adagio"]  { color: #94a3b8; border-color: rgba(148,163,184,0.3); }
 .boss-phase-badge[data-phase="Finale"]  { color: var(--color-gold); border-color: rgba(201,162,39,0.6); }
+
+/* ===============================
+   ST-09 ロシアンルーレット
+================================ */
+.rlt-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0 1rem;
+}
+
+/* リボルバーシリンダー（3×2グリッド） */
+.rlt-cylinder {
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(2, 44px);
+  gap: 8px;
+  padding: 1rem 1.2rem;
+  background: rgba(5, 2, 12, 0.85);
+  border: 1px solid rgba(201,162,39,0.35);
+  border-radius: 50%;
+  width: 180px;
+  height: 130px;
+  justify-items: center;
+  align-items: center;
+}
+.rlt-chamber {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.18);
+  background: rgba(20,15,35,0.9);
+  transition: all 0.25s ease;
+}
+.rlt-chamber.loaded {
+  border-color: rgba(180,30,30,0.9);
+  background: radial-gradient(circle at 40% 40%, #c0392b, #7b0000);
+  box-shadow: 0 0 10px rgba(180,30,30,0.6), inset 0 1px 2px rgba(255,100,100,0.3);
+}
+
+/* 発射確率・弾数 */
+.rlt-prob {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+  letter-spacing: 0.05em;
+}
+.rlt-count-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.rlt-cnt-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(201,162,39,0.5);
+  background: rgba(20,15,35,0.9);
+  color: var(--color-gold);
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.rlt-cnt-btn:hover { background: rgba(201,162,39,0.15); }
+.rlt-cnt-btn:disabled { opacity: 0.3; cursor: default; }
+.rlt-cnt-val {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--color-gold);
+  min-width: 4rem;
+  text-align: center;
+}
+
+.rlt-reward-hint {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+.rlt-self-dmg {
+  font-size: 0.82rem;
+  color: #f87171;
+  margin: 0;
+}
+
+/* ターゲット選択 */
+.rlt-target-row {
+  display: flex;
+  gap: 0.75rem;
+}
+.rlt-target-btn {
+  padding: 0.45em 1.1em;
+  border-radius: 6px;
+  border: 1px solid rgba(201,162,39,0.35);
+  background: rgba(20,15,35,0.8);
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.rlt-target-btn.active {
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+  background: rgba(201,162,39,0.12);
+}
+.rlt-target-btn:hover { border-color: rgba(201,162,39,0.6); }
+.rlt-target-btn:disabled { opacity: 0.3; cursor: default; }
+
+.rlt-servant-sel {
+  padding: 0.35em 0.8em;
+  border-radius: 6px;
+  border: 1px solid rgba(201,162,39,0.35);
+  background: rgba(10,5,20,0.9);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  max-width: 220px;
+}
+
+/* 引き金ボタン */
+.rlt-fire-btn {
+  margin-top: 0.4rem;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  padding: 0.6em 2em;
+}
+.rlt-fire-btn:disabled { opacity: 0.4; cursor: default; }
